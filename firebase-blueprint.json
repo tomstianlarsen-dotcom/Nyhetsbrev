@@ -1,0 +1,42 @@
+{
+  "entities": {
+    "Newsletter": {
+      "title": "Newsletter",
+      "description": "A saved newsletter draft",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "data": { "type": "object" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "userId": { "type": "string" }
+      },
+      "required": ["id", "name", "data", "updatedAt", "userId"]
+    },
+    "Image": {
+      "title": "Image",
+      "description": "An uploaded image asset",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "url": { "type": "string" },
+        "name": { "type": "string" },
+        "size": { "type": "number" },
+        "type": { "type": "string" },
+        "uploadedAt": { "type": "string", "format": "date-time" },
+        "userId": { "type": "string" }
+      },
+      "required": ["id", "url", "name", "uploadedAt", "userId"]
+    }
+  },
+  "firestore": {
+    "/newsletters/{newsletterId}": {
+      "schema": "Newsletter",
+      "description": "Collection of newsletter drafts"
+    },
+    "/images/{imageId}": {
+      "schema": "Image",
+      "description": "Collection of uploaded image metadata"
+    }
+  }
+}

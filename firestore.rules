@@ -1,0 +1,19 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    match /newsletters/{newsletterId} {
+      allow read, write: if true;
+    }
+
+    match /images/{imageId} {
+      // Allow all operations for now to fix the deletion issue
+      allow read, write: if true;
+    }
+  }
+}

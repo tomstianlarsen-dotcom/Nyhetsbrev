@@ -1,0 +1,133 @@
+@import "tailwindcss";
+
+@theme {
+  /* Override Tailwind v4 oklch colors with hex to support html2canvas/PDF export */
+  --color-gray-50: #f9fafb;
+  --color-gray-100: #f3f4f6;
+  --color-gray-200: #e5e7eb;
+  --color-gray-300: #d1d5db;
+  --color-gray-400: #9ca3af;
+  --color-gray-500: #6b7280;
+  --color-gray-600: #4b5563;
+  --color-gray-700: #374151;
+  --color-gray-800: #1f2937;
+  --color-gray-900: #111827;
+  
+  --color-blue-50: #eff6ff;
+  --color-blue-100: #dbeafe;
+  --color-blue-200: #bfdbfe;
+  --color-blue-300: #93c5fd;
+  --color-blue-400: #60a5fa;
+  --color-blue-500: #3b82f6;
+  --color-blue-600: #2563eb;
+  --color-blue-700: #1d4ed8;
+  --color-blue-800: #1e40af;
+  --color-blue-900: #1e3a8a;
+  --color-blue-950: #172554;
+
+  --color-green-50: #f0fdf4;
+  --color-green-600: #16a34a;
+  
+  --color-red-50: #fef2f2;
+  --color-red-600: #dc2626;
+
+  --color-white: #ffffff;
+  --color-black: #000000;
+  --color-transparent: transparent;
+
+  --radius-sm: 4px;
+  --radius-md: 4px;
+  --radius-lg: 4px;
+  --radius-xl: 4px;
+  --radius-2xl: 4px;
+
+  /* Standardized font scale: 12, 16, 20, 24, 28, 32 */
+  --font-size-xs: 0.75rem;    /* 12px */
+  --font-size-sm: 0.875rem;   /* 14px - keeping for small UI details */
+  --font-size-base: 1rem;     /* 16px */
+  --font-size-lg: 1.125rem;   /* 18px - keeping for slight emphasis */
+  --font-size-xl: 1.25rem;    /* 20px */
+  --font-size-2xl: 1.5rem;    /* 24px */
+  --font-size-3xl: 1.75rem;   /* 28px */
+  --font-size-4xl: 2rem;      /* 32px */
+}
+
+@layer base {
+  body {
+    @apply antialiased text-gray-900;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: #e5e7eb;
+    border-radius: 2px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: #d1d5db;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-in {
+  animation: fadeIn 0.15s ease-out forwards;
+}
+
+.newsletter-preview {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.newsletter-preview img {
+  image-rendering: -webkit-optimize-contrast;
+}
+
+/* Mobile optimizations for Newsletter Preview */
+@media (max-width: 640px) {
+  .newsletter-preview td, 
+  .newsletter-preview p, 
+  .newsletter-preview div, 
+  .newsletter-preview h2, 
+  .newsletter-preview h3, 
+  .newsletter-preview a {
+    font-size: 104% !important; /* Minimal increase for readability */
+    line-height: 1.5 !important;
+    word-break: break-word !important;
+  }
+  
+  /* Reduce padding on mobile */
+  .newsletter-preview td {
+    padding-left: 15px !important;
+    padding-right: 15px !important;
+  }
+  
+  /* Responsive images without forcing height auto on everything */
+  .newsletter-preview img {
+    max-width: 100% !important;
+    height: auto; /* Not important, allow inline overrides */
+  }
+
+  /* Ensure table cells stack on mobile */
+  .newsletter-preview td {
+    display: block !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+}
+
+.newsletter-web-container {
+  width: 100%;
+  max-width: 640px;
+  display: flex;
+  justify-content: center;
+}
