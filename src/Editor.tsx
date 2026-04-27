@@ -270,14 +270,15 @@ export const Editor: React.FC = () => {
     if (!previewRef.current) return;
     
     try {
+      notify('Genererer PDF...', 'info');
       const element = previewRef.current;
       const editables = element.querySelectorAll('[contenteditable]');
       editables.forEach(el => (el as HTMLElement).contentEditable = 'false');
       
-      // Create a clean clone for export to avoid visual glitches and remove unwanted elements
+      // Create a clean clone for export
       const clone = element.cloneNode(true) as HTMLElement;
       
-      // Remove symbols of editability or browser-only links
+      // Remove edit-specific attributes
       clone.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
       
       // Remove "View online" link which is irrelevant in PDF
@@ -286,108 +287,73 @@ export const Editor: React.FC = () => {
         onlineLinkRow.remove();
       }
 
-      // Prepare clone styles for measurement
-      const pdfWidthPx = 800; // Target PDF width
-      const windowWidth = 800; // Match window width to PDF width to force desktop layout within the frame
-
-      clone.style.boxShadow = 'none';
-      clone.style.maxWidth = `${pdfWidthPx}px`;
+      // Prepare clone for measurement - don't use fixed/absolute which can cause clipping
+      const pdfWidthPx = 800;
       clone.style.width = `${pdfWidthPx}px`;
+      clone.style.maxWidth = `${pdfWidthPx}px`;
       clone.style.margin = '0';
-      clone.style.padding = '0 20px'; // 20px padding on both sides
+      clone.style.padding = '20px';
       clone.style.boxSizing = 'border-box';
-      clone.style.position = 'fixed';
-      clone.style.left = '0';
-      clone.style.top = '0';
-      clone.style.zIndex = '-1000';
       clone.style.backgroundColor = COLORS.background;
-      clone.style.display = 'block';
-      clone.style.textAlign = 'left';
-      document.body.appendChild(clone);
+      
+      // Create a temporary container that is off-screen but part of the document flow
+      const container = document.createElement('div');
+      container.style.position = 'absolute';
+      container.style.left = '-9999px';
+      container.style.top = '0';
+      container.style.width = '800px';
+      container.appendChild(clone);
+      document.body.appendChild(container);
 
-      // Recursively force all elements to fill the 800px width and remove constraints
+      // Force section widths to 100% inside the 800px container
       const forceFullWidth = (el: HTMLElement) => {
-        const style = window.getComputedStyle(el);
-        
-        // If it looks like it has a 600px constraint (width or maxWidth), break it
-        if (
-          el.tagName === 'TABLE' || 
-          el.style.width === '600px' || 
-          el.getAttribute('width') === '600' ||
-          style.maxWidth === '600px' ||
-          el.classList.contains('max-w-[600px]')
-        ) {
+        if (el.tagName === 'TABLE' || el.style.maxWidth === '600px' || el.getAttribute('width') === '600') {
           el.style.width = '100%';
           el.style.maxWidth = '100%';
-          el.style.minWidth = '100%';
-          if (el.tagName === 'TABLE') {
-            el.setAttribute('width', '100%');
-          }
+          if (el.tagName === 'TABLE') el.setAttribute('width', '100%');
         }
-        
-        // Ensure no inherited max-widths block the expansion
-        if (style.maxWidth !== 'none' && style.maxWidth !== '100%') {
-          el.style.maxWidth = '100%';
-        }
-        
-        // Also ensure images don't get restricted
-        if (el.tagName === 'IMG') {
-          el.style.maxWidth = '100%';
-        }
-
         Array.from(el.children).forEach(child => forceFullWidth(child as HTMLElement));
       };
-      
       forceFullWidth(clone);
 
-      // Force a reflow
-      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-      clone.offsetHeight;
+      // Give images time to load if they were cloned
+      await new Promise(resolve => setTimeout(resolve, 500));
 
-      // Calculate the exact height of the content
-      const heightPx = clone.scrollHeight;
+      const heightPx = clone.offsetHeight || clone.scrollHeight;
       
-      // Convert pixels to inches (96 dpi) for jsPDF
-      const heightIn = (heightPx + 2) / 96;
-      const widthIn = pdfWidthPx / 96;
-
+      // Configuration for html2pdf
       const opt = {
         margin: 0,
         filename: `nyhetsbrev-${new Date().toISOString().split('T')[0]}.pdf`,
-        image: { type: 'jpeg' as const, quality: 0.98 },
+        image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { 
           scale: 2, 
           useCORS: true,
           logging: false,
-          backgroundColor: COLORS.background,
           width: pdfWidthPx,
           height: heightPx,
-          windowWidth: windowWidth,
-          x: 0,
-          y: 0,
-          scrollX: 0,
-          scrollY: 0
+          windowWidth: 800
         },
         jsPDF: { 
-          unit: 'in', 
-          format: [widthIn, heightIn], 
-          orientation: 'portrait' as const 
+          unit: 'px', 
+          format: [pdfWidthPx, heightPx], 
+          orientation: 'portrait',
+          putOnlyUsedFonts: true
         }
       };
       
       const exporter = typeof html2pdf === 'function' ? html2pdf : (html2pdf as any).default;
-      if (!exporter) throw new Error('PDF-biblioteket ble ikke lastet inn riktig.');
-
-      await new Promise(resolve => setTimeout(resolve, 300));
-      await exporter().set(opt).from(clone).toPdf().get('pdf').save();
+      
+      // Use the worker API for better control
+      await exporter().set(opt).from(clone).save();
       
       // Cleanup
-      document.body.removeChild(clone);
+      document.body.removeChild(container);
       editables.forEach(el => (el as HTMLElement).contentEditable = 'true');
       
-      notify('PDF generert!', 'success');
+      notify('PDF ferdig!', 'success');
     } catch (e) {
-      console.error(e);
+      console.error('PDF Error:', e);
       notify('PDF-eksport feilet', 'error');
     }
   };

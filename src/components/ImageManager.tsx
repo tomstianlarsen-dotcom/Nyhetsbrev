@@ -124,7 +124,11 @@ export const ImageManager: React.FC<ImageManagerProps> = ({ isOpen, onClose, onS
       const customDomain = import.meta.env.VITE_GITHUB_PAGES_DOMAIN;
 
       if (!token || !owner || !repo) {
-        throw new Error('GitHub-konfigurasjon mangler (Token, Owner eller Repo)');
+        const missing = [];
+        if (!token) missing.push('VITE_GITHUB_TOKEN');
+        if (!owner) missing.push('VITE_GITHUB_OWNER');
+        if (!repo) missing.push('VITE_GITHUB_REPO');
+        throw new Error(`GitHub-konfigurasjon mangler: ${missing.join(', ')}. Sjekk "Settings" i AI Studio.`);
       }
 
       const filename = `${Date.now()}-${file.name.replace(/\s+/g, '-')}`;
@@ -147,15 +151,15 @@ export const ImageManager: React.FC<ImageManagerProps> = ({ isOpen, onClose, onS
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(`GitHub upload failed: ${errorData.message || response.statusText}`);
+        const msg = errorData.message || response.statusText;
+        if (response.status === 401 || msg.includes('Bad credentials')) {
+          console.error("GitHub Auth Error:", errorData);
+          throw new Error('Feil med GitHub-nøkkel (Bad credentials). Du må oppdatere VITE_GITHUB_TOKEN i AI Studio Settings (ikke bare i GitHub).');
+        }
+        throw new Error(`GitHub upload failed: ${msg}`);
       }
 
-      // Use GitHub Pages URL instead of raw.githubusercontent.com
-      // Pattern: https://<owner>.github.io/<repo>/<path>
-      // Or use custom domain if provided
-      const githubUrl = customDomain 
-        ? `${customDomain.replace(/\/$/, '')}/${path}`
-        : `https://${owner}.github.io/${repo}/${path}`;
+      const githubUrl = `https://raw.githubusercontent.com/${owner}/${repo}/main/${path}`;
       
       setProgress(80);
 

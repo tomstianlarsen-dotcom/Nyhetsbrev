@@ -40,14 +40,68 @@ export const Preview: React.FC<PreviewProps> = ({
     return src;
   };
 
+  const ensureProtocol = (url: string | undefined) => {
+    if (!url) return '';
+    const trimmed = url.trim();
+    if (trimmed.startsWith('mailto:')) return trimmed;
+    if (trimmed.startsWith('tel:')) return trimmed;
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
+    
+    // Handle emails without mailto:
+    if (trimmed.includes('@') && !trimmed.includes('/')) return `mailto:${trimmed}`;
+    
+    // Default to https
+    return `https://${trimmed.replace(/^www\./i, 'www.')}`;
+  };
+
   const renderText = (text: string | undefined) => {
     if (!text) return null;
-    return text.split(/\r?\n/).map((line, i, arr) => (
-      <React.Fragment key={i}>
-        {line}
-        {i < arr.length - 1 && <br />}
-      </React.Fragment>
-    ));
+    
+    // Regex for URLs and Emails
+    const combinedRegex = /(https?:\/\/[^\s]+?(?=[.,;:]?(?:\s|$))|www\.[^\s]+?(?=[.,;:]?(?:\s|$))|[a-zA-Z0-9-]+\.(?:no|com|org|net)(?:\/[^\s]*?)?(?=[.,;:]?(?:\s|$))|[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/gi;
+    
+    return text.split(/\r?\n/).map((line, i, arr) => {
+      const parts = line.split(combinedRegex);
+      
+      return (
+        <React.Fragment key={i}>
+          {parts.map((part, j) => {
+            if (!part) return null;
+
+            // Handle URLs (http, https, www, or .no/.com)
+            if (part.match(/^(https?:\/\/|www\.|[a-zA-Z0-9-]+\.(no|com|org|net))/i)) {
+              const href = ensureProtocol(part);
+              return (
+                <a 
+                  key={j} 
+                  href={href}
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  style={{ color: COLORS.darkBlue, textDecoration: 'underline' }}
+                >
+                  {part}
+                </a>
+              );
+            }
+
+            // Handle Emails
+            if (part.match(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)) {
+              return (
+                <a 
+                  key={j} 
+                  href={`mailto:${part}`}
+                  style={{ color: COLORS.darkBlue, textDecoration: 'underline' }}
+                >
+                  {part}
+                </a>
+              );
+            }
+            return part;
+          })}
+          {i < arr.length - 1 && <br />}
+        </React.Fragment>
+      );
+    });
   };
 
   const handleBlur = (id: string, field: keyof Section, e: React.FocusEvent<HTMLElement>) => {
@@ -58,6 +112,8 @@ export const Preview: React.FC<PreviewProps> = ({
 
   const isBrowserView = new URLSearchParams(window.location.search).get('view') === 'browser';
   const showOnlineLink = onlineUrl && !isBrowserView && !hideOnlineLink;
+
+  const isEditable = activeSectionId !== null || !!onUpdateSection;
 
   return (
     <div 
@@ -75,7 +131,7 @@ export const Preview: React.FC<PreviewProps> = ({
                   <tbody>
                     <tr>
                       <td align="center" style={{ padding: '10px 20px', fontSize: '13px', color: COLORS.darkBlue, fontFamily: 'Arial, sans-serif' }}>
-                        Har du problemer med å lese e-posten? <a href={onlineUrl} style={{ color: COLORS.darkBlue, textDecoration: 'underline' }}>Se den online her.</a>
+                        Har du problemer med å lese e-posten? <a href={ensureProtocol(onlineUrl)} target="_blank" rel="noopener noreferrer" style={{ color: COLORS.darkBlue, textDecoration: 'underline' }}>Se den online her.</a>
                       </td>
                     </tr>
                    </tbody>
@@ -112,7 +168,7 @@ export const Preview: React.FC<PreviewProps> = ({
                     <tr onClick={() => setActiveSectionId('header')}>
                       <td style={{ padding: '20px 30px 5px 30px', backgroundColor: '#feffff', textAlign: 'left' }}>
                         <h3 
-                          contentEditable
+                          contentEditable={isEditable}
                           suppressContentEditableWarning
                           onFocus={() => setActiveSectionId('header')}
                           onBlur={(e) => onUpdateData?.({ byline: e.currentTarget.innerText })}
@@ -149,7 +205,7 @@ export const Preview: React.FC<PreviewProps> = ({
                           <tr onClick={() => setActiveSectionId(section.id)}>
                             <td style={{ padding: '30px', backgroundColor: secBg, fontFamily: 'Arial, sans-serif' }}>
                               <h2 
-                                contentEditable
+                                contentEditable={isEditable}
                                 suppressContentEditableWarning
                                 onFocus={() => setActiveSectionId(section.id)}
                                 onBlur={(e) => handleBlur(section.id, 'title', e)}
@@ -158,7 +214,7 @@ export const Preview: React.FC<PreviewProps> = ({
                                 {section.title}
                               </h2>
                               <div 
-                                contentEditable
+                                contentEditable={isEditable}
                                 suppressContentEditableWarning
                                 onFocus={() => setActiveSectionId(section.id)}
                                 onBlur={(e) => handleBlur(section.id, 'content', e)}
@@ -168,7 +224,12 @@ export const Preview: React.FC<PreviewProps> = ({
                               </div>
                               {section.linkUrl && (
                                 <p style={{ margin: '15px 0 0 0' }}>
-                                  <a href={section.linkUrl} style={{ color: COLORS.darkBlue, fontSize: '16px', textDecoration: 'underline', fontFamily: 'Arial, sans-serif' }}>
+                                  <a 
+                                    href={ensureProtocol(section.linkUrl)} 
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{ color: COLORS.darkBlue, fontSize: '16px', textDecoration: 'underline', fontFamily: 'Arial, sans-serif' }}
+                                  >
                                     {section.linkText || 'Les mer'}
                                   </a>
                                 </p>
@@ -187,18 +248,36 @@ export const Preview: React.FC<PreviewProps> = ({
                                       <>
                                         {/* Image Column */}
                                         <td width="220" valign="top" style={{ width: '220px', paddingBottom: '20px' }}>
-                                          <img 
-                                            src={getImageSrc(section.image)} 
-                                            alt={section.imageAlt || section.title} 
-                                            width="220" 
-                                            referrerPolicy="no-referrer"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setActiveSectionId(section.id);
-                                              onOpenImageManager?.({ type: 'section', sectionId: section.id });
-                                            }}
-                                            style={{ display: 'block', width: '220px', maxWidth: '100%', borderRadius: '4px', border: 0, height: 'auto', cursor: 'pointer', msoInterpolationMode: 'bicubic' }} 
-                                          />
+                                          {section.linkUrl ? (
+                                            <a href={ensureProtocol(section.linkUrl)} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+                                              <img 
+                                                src={getImageSrc(section.image)} 
+                                                alt={section.imageAlt || section.title} 
+                                                width="220" 
+                                                referrerPolicy="no-referrer"
+                                                onClick={(e) => {
+                                                  e.preventDefault();
+                                                  e.stopPropagation();
+                                                  setActiveSectionId(section.id);
+                                                  onOpenImageManager?.({ type: 'section', sectionId: section.id });
+                                                }}
+                                                style={{ display: 'block', width: '220px', maxWidth: '100%', borderRadius: '4px', border: 0, height: 'auto', cursor: 'pointer', msoInterpolationMode: 'bicubic' }} 
+                                              />
+                                            </a>
+                                          ) : (
+                                            <img 
+                                              src={getImageSrc(section.image)} 
+                                              alt={section.imageAlt || section.title} 
+                                              width="220" 
+                                              referrerPolicy="no-referrer"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setActiveSectionId(section.id);
+                                                onOpenImageManager?.({ type: 'section', sectionId: section.id });
+                                              }}
+                                              style={{ display: 'block', width: '220px', maxWidth: '100%', borderRadius: '4px', border: 0, height: 'auto', cursor: 'pointer', msoInterpolationMode: 'bicubic' }} 
+                                            />
+                                          )}
                                           {section.imageCredit && (
                                             <div style={{ padding: '4px 0', fontSize: '10px', color: '#999', textAlign: 'left', lineHeight: '12px', fontFamily: 'Arial, sans-serif' }}>
                                               Foto: {section.imageCredit}
@@ -208,80 +287,108 @@ export const Preview: React.FC<PreviewProps> = ({
                                         {/* Spacer */}
                                         <td width="20" style={{ width: '20px' }}>&nbsp;</td>
                                         {/* Text Column */}
-                                        <td width="300" valign="top" style={{ width: '300px', textAlign: 'left', paddingRight: '20px', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
-                                          <h2 
-                                            contentEditable
-                                            suppressContentEditableWarning
-                                            onFocus={() => setActiveSectionId(section.id)}
-                                            onBlur={(e) => handleBlur(section.id, 'title', e)}
-                                            style={{ margin: '0 0 10px 0', color: COLORS.darkBlue, fontSize: headingSize, fontWeight: headingWeight, lineHeight: headingLineHeight, fontFamily: 'Arial, sans-serif', outline: 'none' }}
-                                          >
-                                            {section.title}
-                                          </h2>
-                                          <div 
-                                            contentEditable
-                                            suppressContentEditableWarning
-                                            onFocus={() => setActiveSectionId(section.id)}
-                                            onBlur={(e) => handleBlur(section.id, 'content', e)}
-                                            style={{ margin: 0, color: '#303030', fontSize: '16px', lineHeight: '24px', fontFamily: 'Arial, sans-serif', outline: 'none' }}
-                                          >
-                                            {renderText(section.content)}
-                                          </div>
-                                          {section.linkUrl && (
-                                            <p style={{ margin: '15px 0 0 0', fontFamily: 'Arial, sans-serif' }}>
-                                              <a href={section.linkUrl} style={{ color: COLORS.darkBlue, fontSize: '16px', textDecoration: 'underline', fontFamily: 'Arial, sans-serif' }}>
-                                                {section.linkText || 'Les mer'}
-                                              </a>
-                                            </p>
-                                          )}
-                                        </td>
+                                          <td width="300" valign="top" style={{ width: '300px', textAlign: 'left', paddingRight: '20px', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+                                            <h2 
+                                              contentEditable={isEditable}
+                                              suppressContentEditableWarning
+                                              onFocus={() => setActiveSectionId(section.id)}
+                                              onBlur={(e) => handleBlur(section.id, 'title', e)}
+                                              style={{ margin: '0 0 10px 0', color: COLORS.darkBlue, fontSize: headingSize, fontWeight: headingWeight, lineHeight: headingLineHeight, fontFamily: 'Arial, sans-serif', outline: 'none' }}
+                                            >
+                                              {section.title}
+                                            </h2>
+                                            <div 
+                                              contentEditable={isEditable}
+                                              suppressContentEditableWarning
+                                              onFocus={() => setActiveSectionId(section.id)}
+                                              onBlur={(e) => handleBlur(section.id, 'content', e)}
+                                              style={{ margin: 0, color: '#303030', fontSize: '16px', lineHeight: '24px', fontFamily: 'Arial, sans-serif', outline: 'none' }}
+                                            >
+                                              {renderText(section.content)}
+                                            </div>
+                                            {section.linkUrl && (
+                                              <p style={{ margin: '15px 0 0 0', fontFamily: 'Arial, sans-serif' }}>
+                                                <a 
+                                                  href={ensureProtocol(section.linkUrl)} 
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  style={{ color: COLORS.darkBlue, fontSize: '16px', textDecoration: 'underline', fontFamily: 'Arial, sans-serif' }}
+                                                >
+                                                  {section.linkText || 'Les mer'}
+                                                </a>
+                                              </p>
+                                            )}
+                                          </td>
                                       </>
                                     ) : (
                                       <>
                                         {/* Text Column */}
-                                        <td width="300" valign="top" style={{ width: '300px', textAlign: 'left', paddingRight: '25px', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
-                                          <h2 
-                                            contentEditable
-                                            suppressContentEditableWarning
-                                            onFocus={() => setActiveSectionId(section.id)}
-                                            onBlur={(e) => handleBlur(section.id, 'title', e)}
-                                            style={{ margin: '0 0 10px 0', color: COLORS.darkBlue, fontSize: headingSize, fontWeight: headingWeight, lineHeight: headingLineHeight, fontFamily: 'Arial, sans-serif', outline: 'none' }}
-                                          >
-                                            {section.title}
-                                          </h2>
-                                          <div 
-                                            contentEditable
-                                            suppressContentEditableWarning
-                                            onFocus={() => setActiveSectionId(section.id)}
-                                            onBlur={(e) => handleBlur(section.id, 'content', e)}
-                                            style={{ margin: 0, color: '#303030', fontSize: '16px', lineHeight: '24px', fontFamily: 'Arial, sans-serif', outline: 'none' }}
-                                          >
-                                            {renderText(section.content)}
-                                          </div>
-                                          {section.linkUrl && (
-                                            <p style={{ margin: '15px 0 0 0', fontFamily: 'Arial, sans-serif' }}>
-                                              <a href={section.linkUrl} style={{ color: COLORS.darkBlue, fontSize: '16px', textDecoration: 'underline', fontFamily: 'Arial, sans-serif' }}>
-                                                {section.linkText || 'Les mer'}
-                                              </a>
-                                            </p>
-                                          )}
-                                        </td>
+                                          <td width="300" valign="top" style={{ width: '300px', textAlign: 'left', paddingRight: '25px', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+                                            <h2 
+                                              contentEditable={isEditable}
+                                              suppressContentEditableWarning
+                                              onFocus={() => setActiveSectionId(section.id)}
+                                              onBlur={(e) => handleBlur(section.id, 'title', e)}
+                                              style={{ margin: '0 0 10px 0', color: COLORS.darkBlue, fontSize: headingSize, fontWeight: headingWeight, lineHeight: headingLineHeight, fontFamily: 'Arial, sans-serif', outline: 'none' }}
+                                            >
+                                              {section.title}
+                                            </h2>
+                                            <div 
+                                              contentEditable={isEditable}
+                                              suppressContentEditableWarning
+                                              onFocus={() => setActiveSectionId(section.id)}
+                                              onBlur={(e) => handleBlur(section.id, 'content', e)}
+                                              style={{ margin: 0, color: '#303030', fontSize: '16px', lineHeight: '24px', fontFamily: 'Arial, sans-serif', outline: 'none' }}
+                                            >
+                                              {renderText(section.content)}
+                                            </div>
+                                            {section.linkUrl && (
+                                              <p style={{ margin: '15px 0 0 0', fontFamily: 'Arial, sans-serif' }}>
+                                                <a 
+                                                  href={ensureProtocol(section.linkUrl)} 
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  style={{ color: COLORS.darkBlue, fontSize: '16px', textDecoration: 'underline', fontFamily: 'Arial, sans-serif' }}
+                                                >
+                                                  {section.linkText || 'Les mer'}
+                                                </a>
+                                              </p>
+                                            )}
+                                          </td>
                                         {/* Spacer */}
                                         <td width="20" style={{ width: '20px' }}>&nbsp;</td>
                                         {/* Image Column */}
                                         <td width="220" valign="top" style={{ width: '220px', paddingBottom: '20px' }}>
-                                          <img 
-                                            src={getImageSrc(section.image)} 
-                                            alt={section.imageAlt || section.title} 
-                                            width="220" 
-                                            referrerPolicy="no-referrer"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setActiveSectionId(section.id);
-                                              onOpenImageManager?.({ type: 'section', sectionId: section.id });
-                                            }}
-                                            style={{ display: 'block', width: '220px', maxWidth: '100%', borderRadius: '4px', border: 0, height: 'auto', cursor: 'pointer', msoInterpolationMode: 'bicubic' }} 
-                                          />
+                                          {section.linkUrl ? (
+                                            <a href={ensureProtocol(section.linkUrl)} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+                                              <img 
+                                                src={getImageSrc(section.image)} 
+                                                alt={section.imageAlt || section.title} 
+                                                width="220" 
+                                                referrerPolicy="no-referrer"
+                                                onClick={(e) => {
+                                                  e.preventDefault();
+                                                  e.stopPropagation();
+                                                  setActiveSectionId(section.id);
+                                                  onOpenImageManager?.({ type: 'section', sectionId: section.id });
+                                                }}
+                                                style={{ display: 'block', width: '220px', maxWidth: '100%', borderRadius: '4px', border: 0, height: 'auto', cursor: 'pointer', msoInterpolationMode: 'bicubic' }} 
+                                              />
+                                            </a>
+                                          ) : (
+                                            <img 
+                                              src={getImageSrc(section.image)} 
+                                              alt={section.imageAlt || section.title} 
+                                              width="220" 
+                                              referrerPolicy="no-referrer"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setActiveSectionId(section.id);
+                                                onOpenImageManager?.({ type: 'section', sectionId: section.id });
+                                              }}
+                                              style={{ display: 'block', width: '220px', maxWidth: '100%', borderRadius: '4px', border: 0, height: 'auto', cursor: 'pointer', msoInterpolationMode: 'bicubic' }} 
+                                            />
+                                          )}
                                           {section.imageCredit && (
                                             <div style={{ padding: '4px 0', fontSize: '10px', color: '#999', textAlign: 'right', lineHeight: '12px', fontFamily: 'Arial, sans-serif' }}>
                                               Foto: {section.imageCredit}
@@ -300,18 +407,36 @@ export const Preview: React.FC<PreviewProps> = ({
                         {section.type === 'full-image' && (
                           <tr onClick={() => setActiveSectionId(section.id)}>
                             <td style={{ padding: 0, backgroundColor: secBg }}>
-                              <img 
-                                src={getImageSrc(section.image)} 
-                                alt={section.imageAlt || section.title || 'Bilde'} 
-                                width="600" 
-                                referrerPolicy="no-referrer"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setActiveSectionId(section.id);
-                                  onOpenImageManager?.({ type: 'section', sectionId: section.id });
-                                }}
-                                style={{ display: 'block', width: '100%', maxWidth: '600px', border: 0, height: 'auto', cursor: 'pointer', msoInterpolationMode: 'bicubic' }} 
-                              />
+                              {section.linkUrl ? (
+                                <a href={ensureProtocol(section.linkUrl)} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+                                  <img 
+                                    src={getImageSrc(section.image)} 
+                                    alt={section.imageAlt || section.title || 'Bilde'} 
+                                    width="600" 
+                                    referrerPolicy="no-referrer"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      setActiveSectionId(section.id);
+                                      onOpenImageManager?.({ type: 'section', sectionId: section.id });
+                                    }}
+                                    style={{ display: 'block', width: '100%', maxWidth: '600px', border: 0, height: 'auto', cursor: 'pointer', msoInterpolationMode: 'bicubic' }} 
+                                  />
+                                </a>
+                              ) : (
+                                <img 
+                                  src={getImageSrc(section.image)} 
+                                  alt={section.imageAlt || section.title || 'Bilde'} 
+                                  width="600" 
+                                  referrerPolicy="no-referrer"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveSectionId(section.id);
+                                    onOpenImageManager?.({ type: 'section', sectionId: section.id });
+                                  }}
+                                  style={{ display: 'block', width: '100%', maxWidth: '600px', border: 0, height: 'auto', cursor: 'pointer', msoInterpolationMode: 'bicubic' }} 
+                                />
+                              )}
                               {section.imageCredit && (
                                 <div style={{ padding: '4px 8px', fontSize: '10px', color: '#999', textAlign: 'right', backgroundColor: '#fff', lineHeight: '12px' }}>
                                   Foto: {section.imageCredit}
@@ -319,7 +444,12 @@ export const Preview: React.FC<PreviewProps> = ({
                               )}
                               {section.linkUrl && (
                                 <div style={{ padding: '15px 30px' }}>
-                                  <a href={section.linkUrl} style={{ color: COLORS.darkBlue, fontSize: '16px', textDecoration: 'underline', fontFamily: 'Arial, sans-serif' }}>
+                                  <a 
+                                    href={ensureProtocol(section.linkUrl)} 
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{ color: COLORS.darkBlue, fontSize: '16px', textDecoration: 'underline', fontFamily: 'Arial, sans-serif' }}
+                                  >
                                     {section.linkText || 'Les mer'}
                                   </a>
                                 </div>
@@ -344,25 +474,43 @@ export const Preview: React.FC<PreviewProps> = ({
                                           return (
                                             <React.Fragment key={item.id}>
                                               <td width="260" valign="top" style={{ width: '260px', paddingBottom: '30px' }}>
-                                                <img 
-                                                  src={getImageSrc(item.image)} 
-                                                  alt={item.imageAlt || item.title} 
-                                                  width="260" 
-                                                  referrerPolicy="no-referrer"
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setActiveSectionId(section.id);
-                                                    onOpenImageManager?.({ type: 'grid', sectionId: section.id, itemId: item.id });
-                                                  }}
-                                                  style={{ display: 'block', width: '260px', borderRadius: '4px', border: 0, marginBottom: '4px', height: 'auto', cursor: 'pointer' }} 
-                                                />
+                                                {item.linkUrl ? (
+                                                  <a href={ensureProtocol(item.linkUrl)} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+                                                    <img 
+                                                      src={getImageSrc(item.image)} 
+                                                      alt={item.imageAlt || item.title} 
+                                                      width="260" 
+                                                      referrerPolicy="no-referrer"
+                                                      onClick={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        setActiveSectionId(section.id);
+                                                        onOpenImageManager?.({ type: 'grid', sectionId: section.id, itemId: item.id });
+                                                      }}
+                                                      style={{ display: 'block', width: '260px', borderRadius: '4px', border: 0, marginBottom: '4px', height: 'auto', cursor: 'pointer' }} 
+                                                    />
+                                                  </a>
+                                                ) : (
+                                                  <img 
+                                                    src={getImageSrc(item.image)} 
+                                                    alt={item.imageAlt || item.title} 
+                                                    width="260" 
+                                                    referrerPolicy="no-referrer"
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      setActiveSectionId(section.id);
+                                                      onOpenImageManager?.({ type: 'grid', sectionId: section.id, itemId: item.id });
+                                                    }}
+                                                    style={{ display: 'block', width: '260px', borderRadius: '4px', border: 0, marginBottom: '4px', height: 'auto', cursor: 'pointer' }} 
+                                                  />
+                                                )}
                                                 {item.imageCredit && (
                                                   <div style={{ padding: '0 4px 8px 4px', fontSize: '10px', color: '#999', textAlign: 'right', lineHeight: '12px', fontFamily: 'Arial, sans-serif' }}>
                                                     Foto: {item.imageCredit}
                                                   </div>
                                                 )}
                                                 <h3 
-                                                  contentEditable
+                                                  contentEditable={isEditable}
                                                   suppressContentEditableWarning
                                                   onFocus={() => setActiveSectionId(section.id)}
                                                   onBlur={(e) => onUpdateGridItem && onUpdateGridItem(section.id, item.id, { title: e.currentTarget.innerText })}
@@ -371,7 +519,7 @@ export const Preview: React.FC<PreviewProps> = ({
                                                   {item.title}
                                                 </h3>
                                                 <div 
-                                                  contentEditable
+                                                  contentEditable={isEditable}
                                                   suppressContentEditableWarning
                                                   onFocus={() => setActiveSectionId(section.id)}
                                                   onBlur={(e) => onUpdateGridItem && onUpdateGridItem(section.id, item.id, { content: e.currentTarget.innerText })}
@@ -381,7 +529,12 @@ export const Preview: React.FC<PreviewProps> = ({
                                                 </div>
                                                 {item.linkUrl && (
                                                   <p style={{ margin: '10px 0 0 0', fontFamily: 'Arial, sans-serif' }}>
-                                                    <a href={item.linkUrl} style={{ color: COLORS.darkBlue, fontSize: '16px', textDecoration: 'underline', fontFamily: 'Arial, sans-serif' }}>
+                                                    <a 
+                                                      href={ensureProtocol(item.linkUrl)} 
+                                                      target="_blank"
+                                                      rel="noopener noreferrer"
+                                                      style={{ color: COLORS.darkBlue, fontSize: '16px', textDecoration: 'underline', fontFamily: 'Arial, sans-serif' }}
+                                                    >
                                                       {item.linkText || 'Les mer'}
                                                     </a>
                                                   </p>
@@ -404,7 +557,7 @@ export const Preview: React.FC<PreviewProps> = ({
                           <tr onClick={() => setActiveSectionId(section.id)}>
                             <td style={{ padding: '30px', backgroundColor: secBg, fontFamily: 'Arial, sans-serif' }}>
                               <h2 
-                                contentEditable
+                                contentEditable={isEditable}
                                 suppressContentEditableWarning
                                 onFocus={() => setActiveSectionId(section.id)}
                                 onBlur={(e) => handleBlur(section.id, 'title', e)}
@@ -421,19 +574,38 @@ export const Preview: React.FC<PreviewProps> = ({
                                           <tbody>
                                             <tr>
                                               <td width="80" valign="top" style={{ width: '80px', minWidth: '80px', maxWidth: '80px', fontFamily: 'Arial, sans-serif' }}>
-                                                <img 
-                                                  src={getImageSrc(member.image)} 
-                                                  alt={member.imageAlt || member.name} 
-                                                  width="80" 
-                                                  height="80" 
-                                                  referrerPolicy="no-referrer"
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setActiveSectionId(section.id);
-                                                    onOpenImageManager?.({ type: 'list', sectionId: section.id, itemId: member.id });
-                                                  }}
-                                                  style={{ display: 'block', width: '80px', height: '80px', minWidth: '80px', minHeight: '80px', maxWidth: '80px', maxHeight: '80px', borderRadius: '4px', border: 0, cursor: 'pointer', objectFit: 'cover' }} 
-                                                />
+                                                {member.linkUrl ? (
+                                                  <a href={ensureProtocol(member.linkUrl)} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+                                                    <img 
+                                                      src={getImageSrc(member.image)} 
+                                                      alt={member.imageAlt || member.name} 
+                                                      width="80" 
+                                                      height="80" 
+                                                      referrerPolicy="no-referrer"
+                                                      onClick={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        setActiveSectionId(section.id);
+                                                        onOpenImageManager?.({ type: 'list', sectionId: section.id, itemId: member.id });
+                                                      }}
+                                                      style={{ display: 'block', width: '80px', height: '80px', minWidth: '80px', minHeight: '80px', maxWidth: '80px', maxHeight: '80px', borderRadius: '4px', border: 0, cursor: 'pointer', objectFit: 'cover' }} 
+                                                    />
+                                                  </a>
+                                                ) : (
+                                                  <img 
+                                                    src={getImageSrc(member.image)} 
+                                                    alt={member.imageAlt || member.name} 
+                                                    width="80" 
+                                                    height="80" 
+                                                    referrerPolicy="no-referrer"
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      setActiveSectionId(section.id);
+                                                      onOpenImageManager?.({ type: 'list', sectionId: section.id, itemId: member.id });
+                                                    }}
+                                                    style={{ display: 'block', width: '80px', height: '80px', minWidth: '80px', minHeight: '80px', maxWidth: '80px', maxHeight: '80px', borderRadius: '4px', border: 0, cursor: 'pointer', objectFit: 'cover' }} 
+                                                  />
+                                                )}
                                                 {member.imageCredit && (
                                                   <div style={{ padding: '2px 0', fontSize: '8px', color: '#999', textAlign: 'center', lineHeight: '10px', fontFamily: 'Arial, sans-serif' }}>
                                                     Foto: {member.imageCredit}
@@ -443,7 +615,7 @@ export const Preview: React.FC<PreviewProps> = ({
                                               <td width="15" style={{ width: '15px', minWidth: '15px', maxWidth: '15px' }}>&nbsp;</td>
                                               <td valign="top" style={{ fontFamily: 'Arial, sans-serif' }}>
                                                 <h3 
-                                                  contentEditable
+                                                  contentEditable={isEditable}
                                                   suppressContentEditableWarning
                                                   onFocus={() => setActiveSectionId(section.id)}
                                                   onBlur={(e) => onUpdateListItem && onUpdateListItem(section.id, member.id, { name: e.currentTarget.innerText })}
@@ -452,7 +624,7 @@ export const Preview: React.FC<PreviewProps> = ({
                                                   {member.name}
                                                 </h3>
                                                 <div 
-                                                  contentEditable
+                                                  contentEditable={isEditable}
                                                   suppressContentEditableWarning
                                                   onFocus={() => setActiveSectionId(section.id)}
                                                   onBlur={(e) => onUpdateListItem && onUpdateListItem(section.id, member.id, { bio: e.currentTarget.innerText })}
@@ -462,7 +634,12 @@ export const Preview: React.FC<PreviewProps> = ({
                                                 </div>
                                                 {member.linkUrl && (
                                                   <p style={{ margin: '6px 0 0 0', fontFamily: 'Arial, sans-serif' }}>
-                                                    <a href={member.linkUrl} style={{ color: COLORS.darkBlue, fontSize: '16px', textDecoration: 'underline', fontFamily: 'Arial, sans-serif' }}>
+                                                    <a 
+                                                      href={ensureProtocol(member.linkUrl)} 
+                                                      target="_blank"
+                                                      rel="noopener noreferrer"
+                                                      style={{ color: COLORS.darkBlue, fontSize: '16px', textDecoration: 'underline', fontFamily: 'Arial, sans-serif' }}
+                                                    >
                                                       {member.linkText || 'Les mer'}
                                                     </a>
                                                   </p>
@@ -497,9 +674,15 @@ export const Preview: React.FC<PreviewProps> = ({
                               <p style={{ margin: '0 0 5px 0', fontSize: '16px', color: '#ffffff', fontFamily: 'Arial, sans-serif', lineHeight: '22px', fontWeight: 'normal' }}>
                                 {data.footerWebsite}
                               </p>
-                              <a href={data.footerWebsiteUrl} style={{ color: '#ffffff', fontSize: '16px', textDecoration: 'underline', fontFamily: 'Arial, sans-serif', fontWeight: 'normal' }}>
-                                {data.footerWebsiteTitle}
-                              </a>
+                              {data.footerWebsiteUrl ? (
+                                <a href={ensureProtocol(data.footerWebsiteUrl)} target="_blank" rel="noopener noreferrer" style={{ color: '#ffffff', textDecoration: 'underline', fontSize: '16px', fontFamily: 'Arial, sans-serif', fontWeight: 'normal' }}>
+                                  {data.footerWebsiteTitle}
+                                </a>
+                              ) : (
+                                <span style={{ color: '#ffffff', fontSize: '16px', fontFamily: 'Arial, sans-serif', fontWeight: 'normal' }}>
+                                  {data.footerWebsiteTitle}
+                                </span>
+                              )}
                             </td>
                             <td width="50%" valign="top" style={{ paddingLeft: '20px', fontFamily: 'Arial, sans-serif', paddingBottom: '20px' }}>
                               <p style={{ margin: '0 0 10px 0', fontSize: '16px', color: '#70E9FF', fontFamily: 'Arial, sans-serif', lineHeight: '22px', fontWeight: 'normal' }}>
@@ -508,7 +691,10 @@ export const Preview: React.FC<PreviewProps> = ({
                               {(data.footerContacts || []).map((c) => (
                                 <p key={c.id} style={{ margin: '0 0 12px 0', fontSize: '16px', lineHeight: '22px', color: '#ffffff', fontFamily: 'Arial, sans-serif', fontWeight: 'normal' }}>
                                   {c.name}, {c.role}<br />
-                                  <a href={`mailto:${c.email}`} style={{ color: '#ffffff', textDecoration: 'underline', fontFamily: 'Arial, sans-serif', fontWeight: 'normal' }}>
+                                  <a 
+                                    href={`mailto:${c.email}`} 
+                                    style={{ color: '#ffffff', textDecoration: 'underline', fontFamily: 'Arial, sans-serif', fontWeight: 'normal' }}
+                                  >
                                     {c.email}
                                   </a>
                                 </p>
@@ -541,8 +727,8 @@ export const Preview: React.FC<PreviewProps> = ({
                         <tbody>
                           <tr>
                             <td align="center" style={{ fontSize: '16px', color: COLORS.text, lineHeight: '24px', fontFamily: 'Arial, sans-serif', fontWeight: 'normal' }}>
-                              Likte du det du leste? <a href={`mailto:kjersti.sirevag@hel.oslo.kommune.no?subject=Påmelding nyhetsbrev`} style={{ color: COLORS.darkBlue, textDecoration: 'underline', fontWeight: 'normal' }}>Meld deg på</a> her for å få alle nyhetsbrevene.<br />
-                              Ønsker du ikke lenger e-post? <a href={`mailto:kjersti.sirevag@hel.oslo.kommune.no?subject=Avmelding nyhetsbrev`} style={{ color: COLORS.darkBlue, textDecoration: 'underline', fontWeight: 'normal' }}>Meld deg av</a> her.
+                              Likte du det du leste? <a href={`mailto:kjersti.sirevag@hel.oslo.kommune.no?subject=${encodeURIComponent('Påmelding nyhetsbrev')}`} style={{ color: COLORS.darkBlue, textDecoration: 'underline', fontWeight: 'normal' }}>Meld deg på</a> her for å få alle nyhetsbrevene.<br />
+                              Ønsker du ikke lenger e-post? <a href={`mailto:kjersti.sirevag@hel.oslo.kommune.no?subject=${encodeURIComponent('Avmelding nyhetsbrev')}`} style={{ color: COLORS.darkBlue, textDecoration: 'underline', fontWeight: 'normal' }}>Meld deg av</a> her.
                             </td>
                           </tr>
                         </tbody>
