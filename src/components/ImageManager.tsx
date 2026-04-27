@@ -121,6 +121,7 @@ export const ImageManager: React.FC<ImageManagerProps> = ({ isOpen, onClose, onS
       const owner = import.meta.env.VITE_GITHUB_OWNER;
       const repo = import.meta.env.VITE_GITHUB_REPO;
       const basePath = import.meta.env.VITE_GITHUB_IMAGES_PATH || 'public/bilder';
+      const customDomain = import.meta.env.VITE_GITHUB_PAGES_DOMAIN;
 
       if (!token || !owner || !repo) {
         throw new Error('GitHub-konfigurasjon mangler (Token, Owner eller Repo)');
@@ -149,7 +150,13 @@ export const ImageManager: React.FC<ImageManagerProps> = ({ isOpen, onClose, onS
         throw new Error(`GitHub upload failed: ${errorData.message || response.statusText}`);
       }
 
-      const githubUrl = `https://raw.githubusercontent.com/${owner}/${repo}/main/${path}`;
+      // Use GitHub Pages URL instead of raw.githubusercontent.com
+      // Pattern: https://<owner>.github.io/<repo>/<path>
+      // Or use custom domain if provided
+      const githubUrl = customDomain 
+        ? `${customDomain.replace(/\/$/, '')}/${path}`
+        : `https://${owner}.github.io/${repo}/${path}`;
+      
       setProgress(80);
 
       // Step 3: Save metadata to Firestore

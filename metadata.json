@@ -1,5 +1,5 @@
 {
-  "name": "Newsletter Editor",
-  "description": "A professional newsletter editor with real-time preview and Outlook export.",
+  "name": "Halogen Nyhetsbrevverktøy",
+  "description": "Profesjonelt verktøy for utforming og utsendelse av nyhetsbrev for Helseetaten.",
   "requestFramePermissions": []
 }
