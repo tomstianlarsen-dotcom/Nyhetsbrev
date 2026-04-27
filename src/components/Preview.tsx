@@ -71,10 +71,10 @@ export const Preview: React.FC<PreviewProps> = ({
             <td align="center" style={{ padding: '10px 0 0 0', backgroundColor: COLORS.background, fontFamily: 'Arial, sans-serif' }}>
               {/* Online Version Link */}
               {showOnlineLink && (
-                <table role="presentation" width="100%" cellPadding="0" cellSpacing="0" border={0} style={{ maxWidth: '600px' }}>
+                <table role="presentation" width="100%" cellPadding="0" cellSpacing="0" border={0} style={{ width: '100%', maxWidth: '600px' }}>
                   <tbody>
                     <tr>
-                      <td align="center" style={{ padding: '0', fontSize: '12px', color: COLORS.darkBlue, fontFamily: 'Arial, sans-serif' }}>
+                      <td align="center" style={{ padding: '10px 20px', fontSize: '13px', color: COLORS.darkBlue, fontFamily: 'Arial, sans-serif' }}>
                         Har du problemer med å lese e-posten? <a href={onlineUrl} style={{ color: COLORS.darkBlue, textDecoration: 'underline' }}>Se den online her.</a>
                       </td>
                     </tr>
@@ -120,7 +120,7 @@ export const Preview: React.FC<PreviewProps> = ({
                             margin: 0,
                             padding: '0 0 2px 0',
                             color: COLORS.darkBlue, 
-                            fontSize: '14px', 
+                            fontSize: '16px', 
                             fontWeight: 'bold', 
                             textTransform: 'uppercase', 
                             fontFamily: 'Arial, sans-serif', 
@@ -162,13 +162,13 @@ export const Preview: React.FC<PreviewProps> = ({
                                 suppressContentEditableWarning
                                 onFocus={() => setActiveSectionId(section.id)}
                                 onBlur={(e) => handleBlur(section.id, 'content', e)}
-                                style={{ margin: 0, color: '#303030', fontSize: '14px', lineHeight: '22px', fontFamily: 'Arial, sans-serif', outline: 'none' }}
+                                style={{ margin: 0, color: '#303030', fontSize: '16px', lineHeight: '24px', fontFamily: 'Arial, sans-serif', outline: 'none' }}
                               >
                                 {renderText(section.content)}
                               </div>
                               {section.linkUrl && (
                                 <p style={{ margin: '15px 0 0 0' }}>
-                                  <a href={section.linkUrl} style={{ color: COLORS.darkBlue, fontSize: '14px', textDecoration: 'underline', fontFamily: 'Arial, sans-serif' }}>
+                                  <a href={section.linkUrl} style={{ color: COLORS.darkBlue, fontSize: '16px', textDecoration: 'underline', fontFamily: 'Arial, sans-serif' }}>
                                     {section.linkText || 'Les mer'}
                                   </a>
                                 </p>
@@ -223,13 +223,13 @@ export const Preview: React.FC<PreviewProps> = ({
                                             suppressContentEditableWarning
                                             onFocus={() => setActiveSectionId(section.id)}
                                             onBlur={(e) => handleBlur(section.id, 'content', e)}
-                                            style={{ margin: 0, color: '#303030', fontSize: '14px', lineHeight: '22px', fontFamily: 'Arial, sans-serif', outline: 'none' }}
+                                            style={{ margin: 0, color: '#303030', fontSize: '16px', lineHeight: '24px', fontFamily: 'Arial, sans-serif', outline: 'none' }}
                                           >
                                             {renderText(section.content)}
                                           </div>
                                           {section.linkUrl && (
                                             <p style={{ margin: '15px 0 0 0', fontFamily: 'Arial, sans-serif' }}>
-                                              <a href={section.linkUrl} style={{ color: COLORS.darkBlue, fontSize: '14px', textDecoration: 'underline', fontFamily: 'Arial, sans-serif' }}>
+                                              <a href={section.linkUrl} style={{ color: COLORS.darkBlue, fontSize: '16px', textDecoration: 'underline', fontFamily: 'Arial, sans-serif' }}>
                                                 {section.linkText || 'Les mer'}
                                               </a>
                                             </p>
@@ -254,13 +254,13 @@ export const Preview: React.FC<PreviewProps> = ({
                                             suppressContentEditableWarning
                                             onFocus={() => setActiveSectionId(section.id)}
                                             onBlur={(e) => handleBlur(section.id, 'content', e)}
-                                            style={{ margin: 0, color: '#303030', fontSize: '14px', lineHeight: '22px', fontFamily: 'Arial, sans-serif', outline: 'none' }}
+                                            style={{ margin: 0, color: '#303030', fontSize: '16px', lineHeight: '24px', fontFamily: 'Arial, sans-serif', outline: 'none' }}
                                           >
                                             {renderText(section.content)}
                                           </div>
                                           {section.linkUrl && (
                                             <p style={{ margin: '15px 0 0 0', fontFamily: 'Arial, sans-serif' }}>
-                                              <a href={section.linkUrl} style={{ color: COLORS.darkBlue, fontSize: '14px', textDecoration: 'underline', fontFamily: 'Arial, sans-serif' }}>
+                                              <a href={section.linkUrl} style={{ color: COLORS.darkBlue, fontSize: '16px', textDecoration: 'underline', fontFamily: 'Arial, sans-serif' }}>
                                                 {section.linkText || 'Les mer'}
                                               </a>
                                             </p>
@@ -319,7 +319,7 @@ export const Preview: React.FC<PreviewProps> = ({
                               )}
                               {section.linkUrl && (
                                 <div style={{ padding: '15px 30px' }}>
-                                  <a href={section.linkUrl} style={{ color: COLORS.darkBlue, fontSize: '14px', textDecoration: 'underline', fontFamily: 'Arial, sans-serif' }}>
+                                  <a href={section.linkUrl} style={{ color: COLORS.darkBlue, fontSize: '16px', textDecoration: 'underline', fontFamily: 'Arial, sans-serif' }}>
                                     {section.linkText || 'Les mer'}
                                   </a>
                                 </div>
@@ -375,13 +375,13 @@ export const Preview: React.FC<PreviewProps> = ({
                                                   suppressContentEditableWarning
                                                   onFocus={() => setActiveSectionId(section.id)}
                                                   onBlur={(e) => onUpdateGridItem && onUpdateGridItem(section.id, item.id, { content: e.currentTarget.innerText })}
-                                                  style={{ margin: 0, color: '#303030', fontSize: '14px', lineHeight: '22px', fontFamily: 'Arial, sans-serif', outline: 'none' }}
+                                                  style={{ margin: 0, color: '#303030', fontSize: '16px', lineHeight: '24px', fontFamily: 'Arial, sans-serif', outline: 'none' }}
                                                 >
                                                   {renderText(item.content)}
                                                 </div>
                                                 {item.linkUrl && (
                                                   <p style={{ margin: '10px 0 0 0', fontFamily: 'Arial, sans-serif' }}>
-                                                    <a href={item.linkUrl} style={{ color: COLORS.darkBlue, fontSize: '14px', textDecoration: 'underline', fontFamily: 'Arial, sans-serif' }}>
+                                                    <a href={item.linkUrl} style={{ color: COLORS.darkBlue, fontSize: '16px', textDecoration: 'underline', fontFamily: 'Arial, sans-serif' }}>
                                                       {item.linkText || 'Les mer'}
                                                     </a>
                                                   </p>
@@ -456,13 +456,13 @@ export const Preview: React.FC<PreviewProps> = ({
                                                   suppressContentEditableWarning
                                                   onFocus={() => setActiveSectionId(section.id)}
                                                   onBlur={(e) => onUpdateListItem && onUpdateListItem(section.id, member.id, { bio: e.currentTarget.innerText })}
-                                                  style={{ margin: 0, color: '#303030', fontSize: '14px', lineHeight: '22px', fontFamily: 'Arial, sans-serif', outline: 'none' }}
+                                                  style={{ margin: 0, color: '#303030', fontSize: '16px', lineHeight: '24px', fontFamily: 'Arial, sans-serif', outline: 'none' }}
                                                 >
                                                   {renderText(member.bio)}
                                                 </div>
                                                 {member.linkUrl && (
                                                   <p style={{ margin: '6px 0 0 0', fontFamily: 'Arial, sans-serif' }}>
-                                                    <a href={member.linkUrl} style={{ color: COLORS.darkBlue, fontSize: '14px', textDecoration: 'underline', fontFamily: 'Arial, sans-serif' }}>
+                                                    <a href={member.linkUrl} style={{ color: COLORS.darkBlue, fontSize: '16px', textDecoration: 'underline', fontFamily: 'Arial, sans-serif' }}>
                                                       {member.linkText || 'Les mer'}
                                                     </a>
                                                   </p>
@@ -491,22 +491,22 @@ export const Preview: React.FC<PreviewProps> = ({
                         <tbody>
                           <tr>
                             <td width="50%" valign="top" style={{ fontFamily: 'Arial, sans-serif', paddingBottom: '20px' }}>
-                              <p style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#70E9FF', fontFamily: 'Arial, sans-serif', lineHeight: '20px', fontWeight: 'normal' }}>
+                              <p style={{ margin: '0 0 10px 0', fontSize: '16px', color: '#70E9FF', fontFamily: 'Arial, sans-serif', lineHeight: '22px', fontWeight: 'normal' }}>
                                 {data.footerWebsiteLabel}
                               </p>
-                              <p style={{ margin: '0 0 5px 0', fontSize: '14px', color: '#ffffff', fontFamily: 'Arial, sans-serif', lineHeight: '20px', fontWeight: 'normal' }}>
+                              <p style={{ margin: '0 0 5px 0', fontSize: '16px', color: '#ffffff', fontFamily: 'Arial, sans-serif', lineHeight: '22px', fontWeight: 'normal' }}>
                                 {data.footerWebsite}
                               </p>
-                              <a href={data.footerWebsiteUrl} style={{ color: '#ffffff', fontSize: '14px', textDecoration: 'underline', fontFamily: 'Arial, sans-serif', fontWeight: 'normal' }}>
+                              <a href={data.footerWebsiteUrl} style={{ color: '#ffffff', fontSize: '16px', textDecoration: 'underline', fontFamily: 'Arial, sans-serif', fontWeight: 'normal' }}>
                                 {data.footerWebsiteTitle}
                               </a>
                             </td>
                             <td width="50%" valign="top" style={{ paddingLeft: '20px', fontFamily: 'Arial, sans-serif', paddingBottom: '20px' }}>
-                              <p style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#70E9FF', fontFamily: 'Arial, sans-serif', lineHeight: '20px', fontWeight: 'normal' }}>
+                              <p style={{ margin: '0 0 10px 0', fontSize: '16px', color: '#70E9FF', fontFamily: 'Arial, sans-serif', lineHeight: '22px', fontWeight: 'normal' }}>
                                 {data.footerContactTitle}
                               </p>
                               {(data.footerContacts || []).map((c) => (
-                                <p key={c.id} style={{ margin: '0 0 12px 0', fontSize: '14px', lineHeight: '20px', color: '#ffffff', fontFamily: 'Arial, sans-serif', fontWeight: 'normal' }}>
+                                <p key={c.id} style={{ margin: '0 0 12px 0', fontSize: '16px', lineHeight: '22px', color: '#ffffff', fontFamily: 'Arial, sans-serif', fontWeight: 'normal' }}>
                                   {c.name}, {c.role}<br />
                                   <a href={`mailto:${c.email}`} style={{ color: '#ffffff', textDecoration: 'underline', fontFamily: 'Arial, sans-serif', fontWeight: 'normal' }}>
                                     {c.email}
@@ -540,7 +540,7 @@ export const Preview: React.FC<PreviewProps> = ({
                       <table role="presentation" width="100%" cellPadding="0" cellSpacing="0" border={0} style={{ borderCollapse: 'collapse' }}>
                         <tbody>
                           <tr>
-                            <td align="center" style={{ fontSize: '14px', color: COLORS.text, lineHeight: '20px', fontFamily: 'Arial, sans-serif', fontWeight: 'normal' }}>
+                            <td align="center" style={{ fontSize: '16px', color: COLORS.text, lineHeight: '24px', fontFamily: 'Arial, sans-serif', fontWeight: 'normal' }}>
                               Likte du det du leste? <a href={`mailto:kjersti.sirevag@hel.oslo.kommune.no?subject=Påmelding nyhetsbrev`} style={{ color: COLORS.darkBlue, textDecoration: 'underline', fontWeight: 'normal' }}>Meld deg på</a> her for å få alle nyhetsbrevene.<br />
                               Ønsker du ikke lenger e-post? <a href={`mailto:kjersti.sirevag@hel.oslo.kommune.no?subject=Avmelding nyhetsbrev`} style={{ color: COLORS.darkBlue, textDecoration: 'underline', fontWeight: 'normal' }}>Meld deg av</a> her.
                             </td>

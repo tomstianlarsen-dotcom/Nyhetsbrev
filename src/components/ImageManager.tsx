@@ -21,7 +21,8 @@ interface ImageAsset {
   uploadedAt: any;
   size: number;
   type: string;
-  storagePath: string;
+  storagePath?: string;
+  githubPath?: string;
 }
 
 interface ImageManagerProps {
@@ -77,7 +78,7 @@ export const ImageManager: React.FC<ImageManagerProps> = ({ isOpen, onClose, onS
     setProgress(20);
 
     try {
-      // Convert to Base64 and Resize to stay under 1MB Firestore limit
+      // Step 1: Resize on client to stay under GitHub and bandwidth limits
       setError(null);
       const base64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
@@ -88,8 +89,8 @@ export const ImageManager: React.FC<ImageManagerProps> = ({ isOpen, onClose, onS
             let width = img.width;
             let height = img.height;
 
-            // Max dimensions for newsletter (e.g., 800px wide for balance between quality and string length)
-            const MAX_WIDTH = 800;
+            // Max dimensions for newsletter
+            const MAX_WIDTH = 1200; // Increased a bit for better quality on high-res displays
             if (width > MAX_WIDTH) {
               height = Math.round((height * MAX_WIDTH) / width);
               width = MAX_WIDTH;
@@ -100,11 +101,10 @@ export const ImageManager: React.FC<ImageManagerProps> = ({ isOpen, onClose, onS
             const ctx = canvas.getContext('2d');
             ctx?.drawImage(img, 0, 0, width, height);
 
-            // Use PNG for PNG files to preserve transparency, otherwise use JPEG
             const isPng = file.type === 'image/png';
             const dataUrl = isPng 
               ? canvas.toDataURL('image/png') 
-              : canvas.toDataURL('image/jpeg', 0.7); // Slightly lower quality for much smaller string
+              : canvas.toDataURL('image/jpeg', 0.85); 
             resolve(dataUrl);
           };
           img.onerror = reject;
@@ -114,16 +114,53 @@ export const ImageManager: React.FC<ImageManagerProps> = ({ isOpen, onClose, onS
         reader.readAsDataURL(file);
       });
 
-      setProgress(60);
+      setProgress(40);
 
-      // Save to Firestore instead of Storage
+      // Step 2: Upload to GitHub
+      const token = import.meta.env.VITE_GITHUB_TOKEN;
+      const owner = import.meta.env.VITE_GITHUB_OWNER;
+      const repo = import.meta.env.VITE_GITHUB_REPO;
+      const basePath = import.meta.env.VITE_GITHUB_IMAGES_PATH || 'public/bilder';
+
+      if (!token || !owner || !repo) {
+        throw new Error('GitHub-konfigurasjon mangler (Token, Owner eller Repo)');
+      }
+
+      const filename = `${Date.now()}-${file.name.replace(/\s+/g, '-')}`;
+      const path = `${basePath}/${filename}`.replace(/\/+/g, '/');
+      
+      const response = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: `Add newsletter image: ${filename}`,
+            content: base64.split(',')[1], // strip data URL prefix
+          }),
+        }
+      );
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`GitHub upload failed: ${errorData.message || response.statusText}`);
+      }
+
+      const githubUrl = `https://raw.githubusercontent.com/${owner}/${repo}/main/${path}`;
+      setProgress(80);
+
+      // Step 3: Save metadata to Firestore
       await addDoc(collection(db, 'images'), {
-        url: base64, // The base64 string IS the URL now
+        url: githubUrl, 
         name: file.name,
-        size: base64.length,
-        type: file.type === 'image/png' ? 'image/png' : 'image/jpeg',
+        size: file.size,
+        type: file.type,
         uploadedAt: serverTimestamp(),
-        userId: auth.currentUser?.uid || 'anonymous'
+        userId: auth.currentUser?.uid || 'anonymous',
+        githubPath: path // Save path for potential deletion
       });
 
       setProgress(100);
@@ -143,6 +180,50 @@ export const ImageManager: React.FC<ImageManagerProps> = ({ isOpen, onClose, onS
     setError(null);
 
     try {
+      // If it's stored on GitHub, we SHOULD try to delete it, but it's complex because we need the SHA
+      // For now, we mainly focus on removing it from Firestore so it doesn't show up in the app.
+      // If we really want to delete from GitHub, we first need to GET the file to get the SHA.
+      
+      const token = import.meta.env.VITE_GITHUB_TOKEN;
+      const owner = import.meta.env.VITE_GITHUB_OWNER;
+      const repo = import.meta.env.VITE_GITHUB_REPO;
+
+      if (image.githubPath && token && owner && repo) {
+        try {
+          // 1. Get the file to get its SHA
+          const getRes = await fetch(
+            `https://api.github.com/repos/${owner}/${repo}/contents/${image.githubPath}`,
+            {
+              headers: { 'Authorization': `Bearer ${token}` }
+            }
+          );
+          
+          if (getRes.ok) {
+            const fileData = await getRes.json();
+            const sha = fileData.sha;
+            
+            // 2. Delete the file
+            await fetch(
+              `https://api.github.com/repos/${owner}/${repo}/contents/${image.githubPath}`,
+              {
+                method: 'DELETE',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  message: `Delete newsletter image: ${image.name}`,
+                  sha: sha
+                }),
+              }
+            );
+          }
+        } catch (githubErr) {
+          console.error("Error deleting from GitHub:", githubErr);
+          // We continue to delete from Firestore even if GitHub deletion fails
+        }
+      }
+
       await deleteDoc(doc(db, 'images', image.id));
       setConfirmDeleteId(null);
     } catch (err) {

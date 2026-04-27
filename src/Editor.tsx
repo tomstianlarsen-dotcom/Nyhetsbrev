@@ -405,6 +405,14 @@ export const Editor: React.FC = () => {
     try {
       // Create a clone to clean up
       const clone = previewRef.current.cloneNode(true) as HTMLElement;
+
+      // Ensure links are absolute if they weren't already
+      clone.querySelectorAll('a').forEach(a => {
+        const href = a.getAttribute('href');
+        if (href && href.startsWith('/')) {
+          a.setAttribute('href', window.location.origin + href);
+        }
+      });
       
       // Remove all elements that shouldn't be in the final email
       const editableElements = clone.querySelectorAll('[contenteditable]');
@@ -419,6 +427,13 @@ export const Editor: React.FC = () => {
 
       // Clean up images for Outlook
       clone.querySelectorAll('img').forEach(img => {
+        const src = img.getAttribute('src') || '';
+        
+        // Advarsel hvis base64 fremdeles er til stede
+        if (src.startsWith('data:')) {
+          console.warn('ADVARSEL: base64-bilde funnet i e-post. Dette vil trigge spamfiltre.', img);
+        }
+
         img.removeAttribute('onclick');
         img.removeAttribute('onclick'); // redundancy for safety
         img.removeAttribute('referrerpolicy');
