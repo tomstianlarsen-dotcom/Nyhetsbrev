@@ -432,6 +432,9 @@ export const Editor: React.FC = () => {
         img.style.border = '0';
         img.style.outline = 'none';
         img.style.textDecoration = 'none';
+        // Gmail/clients: don't allow images to force overflow
+        img.style.maxWidth = '100%';
+        img.style.height = 'auto';
         // Force width for Outlook
         const widthAttr = img.getAttribute('width');
         if (widthAttr) {
@@ -522,6 +525,9 @@ export const Editor: React.FC = () => {
   <style>
     /* Prevent Windows 10 Mail from resizing images */
     img { -ms-interpolation-mode: bicubic; }
+    /* Avoid horizontal overflow in Gmail */
+    table { table-layout: fixed; }
+    td { word-break: break-word; overflow-wrap: break-word; }
     /* Force mobile apps to show text at regular size */
     body { width: 100% !important; -webkit-text-size-adjust: 100% !important; -ms-text-size-adjust: 100% !important; margin: 0; padding: 0; }
     /* Ensure links aren't automatically changed to blue */
@@ -538,11 +544,11 @@ export const Editor: React.FC = () => {
   <tr>
     <td align="center" style="padding: 20px 0; background-color: ${COLORS.background};" bgcolor="${COLORS.background}">
       <!--[if mso]>
-      <table role="presentation" width="600" border="0" cellspacing="0" cellpadding="0" align="center" bgcolor="${COLORS.background}" style="width:600px; background-color: ${COLORS.background};">
+      <table role="presentation" width="600" border="0" cellspacing="0" cellpadding="0" align="center" bgcolor="${COLORS.background}" style="width:600px; background-color:${COLORS.background};">
         <tr>
-          <td align="center" style="padding: 0; background-color: ${COLORS.background};" bgcolor="${COLORS.background}">
+          <td align="left" bgcolor="${COLORS.background}" style="background-color:${COLORS.background}; font-family: Arial, Helvetica, sans-serif;">
       <![endif]-->
-      <table role="presentation" border="0" cellspacing="0" cellpadding="0" align="center" width="600" style="width:600px; max-width:600px; margin:0 auto; background-color:${COLORS.background};">
+      <table role="presentation" border="0" cellspacing="0" cellpadding="0" align="center" width="100%" style="width:100%; max-width:600px; margin:0 auto; background-color:${COLORS.background};">
         <tr>
           <td align="left" style="padding:0; background-color:${COLORS.background}; font-family: Arial, Helvetica, sans-serif;">
             <!--StartFragment-->
