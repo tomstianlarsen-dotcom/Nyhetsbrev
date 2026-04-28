@@ -2,10 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Check, Info, AlertCircle, ArrowLeft } from 'lucide-react';
+import { pdf } from '@react-pdf/renderer';
 // @ts-ignore
 import html2pdf from 'html2pdf.js';
 import { NewsletterData, Section, ListItem, GridItem } from './types';
 import { DEFAULT_DATA, COLORS } from './constants';
+import { NewsletterPdfDocument } from './pdf/NewsletterPdf';
 import { Sidebar } from './components/Sidebar';
 import { Preview } from './components/Preview';
 import { ImageManager } from './components/ImageManager';
@@ -267,10 +269,32 @@ export const Editor: React.FC = () => {
   };
 
   const handleExportPDF = async () => {
-    if (!previewRef.current) return;
+    const filename = `nyhetsbrev-${new Date().toISOString().split('T')[0]}.pdf`;
     
     try {
       notify('Genererer PDF...', 'info');
+
+      // Prefer "real PDF" with selectable text (vector-like) via react-pdf.
+      // Fall back to html2pdf (screenshot-based) if react-pdf fails.
+      try {
+        const blob = await pdf(
+          <NewsletterPdfDocument data={data} title={name} />
+        ).toBlob();
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        notify('PDF ferdig!', 'success');
+        return;
+      } catch (e) {
+        console.warn('react-pdf export failed, falling back to html2pdf:', e);
+      }
+
+      if (!previewRef.current) return;
       const element = previewRef.current;
       const editables = element.querySelectorAll('[contenteditable]');
       editables.forEach(el => (el as HTMLElement).contentEditable = 'false');
@@ -324,7 +348,7 @@ export const Editor: React.FC = () => {
       // Configuration for html2pdf
       const opt = {
         margin: 0,
-        filename: `nyhetsbrev-${new Date().toISOString().split('T')[0]}.pdf`,
+        filename,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { 
           scale: 2, 
@@ -392,12 +416,13 @@ export const Editor: React.FC = () => {
       });
 
       // Clean up images for Outlook
+      const base64Images: string[] = [];
       clone.querySelectorAll('img').forEach(img => {
         const src = img.getAttribute('src') || '';
         
-        // Advarsel hvis base64 fremdeles er til stede
+        // Hard stop: base64/data URLs must never reach email HTML.
         if (src.startsWith('data:')) {
-          console.warn('ADVARSEL: base64-bilde funnet i e-post. Dette vil trigge spamfiltre.', img);
+          base64Images.push(src.slice(0, 64));
         }
 
         img.removeAttribute('onclick');
@@ -413,6 +438,12 @@ export const Editor: React.FC = () => {
           img.style.width = widthAttr + 'px';
         }
       });
+
+      if (base64Images.length > 0) {
+        throw new Error(
+          'E-post-HTML inneholder base64/data:-bilder. Last opp bildet til bildebiblioteket og bruk HTTPS-URL (ikke inline base64).'
+        );
+      }
 
       // Clean up interactive elements
       clone.querySelectorAll('.section-actions, .item-actions, button').forEach(el => el.remove());
@@ -536,9 +567,9 @@ export const Editor: React.FC = () => {
       setOutlookCopied(true);
       setTimeout(() => setOutlookCopied(false), 2000);
       notify('Kopiert til utklippstavlen!', 'success');
-    } catch (e) {
+    } catch (e: any) {
       console.error('Kopiering feilet:', e);
-      notify('Kunne ikke kopiere. Prøv en annen nettleser.', 'error');
+      notify(e?.message || 'Kunne ikke kopiere. Prøv en annen nettleser.', 'error');
     }
   };
 
