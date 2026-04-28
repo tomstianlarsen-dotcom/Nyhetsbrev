@@ -60,6 +60,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const navigate = useNavigate();
   const [saveMenuOpen, setSaveMenuOpen] = useState(false);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const appVersion =
+    typeof __APP_VERSION__ === 'string' && __APP_VERSION__.trim() ? __APP_VERSION__ : '';
 
   const sectionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
@@ -588,6 +590,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </span>
             <ChevronDown size={16} className={cn("transition-transform", addMenuOpen && "rotate-180")} />
           </button>
+          {appVersion ? (
+            <div className="mt-2 text-[10px] text-gray-400 text-center tracking-wide">
+              {appVersion}
+            </div>
+          ) : null}
           {addMenuOpen && (
             <div className="absolute bottom-full left-0 right-0 mb-2 bg-white border border-gray-200 rounded-xl shadow-2xl z-[100] overflow-hidden animate-in fade-in slide-in-from-bottom-2">
               <div className="px-4 py-2 bg-gray-50 border-b border-gray-100 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Velg seksjonstype</div>
