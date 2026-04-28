@@ -438,7 +438,9 @@ export const Editor: React.FC = () => {
         // Force width for Outlook
         const widthAttr = img.getAttribute('width');
         if (widthAttr) {
-          img.style.width = widthAttr + 'px';
+          // Keep Outlook deterministic via the width attribute, but make modern clients fluid.
+          img.style.width = '100%';
+          img.style.maxWidth = widthAttr + 'px';
         }
       });
 
@@ -498,19 +500,33 @@ export const Editor: React.FC = () => {
           // @ts-ignore
           table.style.msoTableRspace = '0pt';
           
-          // Force 600px width ONLY for the top-level main container tables
-          // Nested tables should remain 100% or their specific widths
-          if (table.style.maxWidth === '600px') {
-             table.setAttribute('width', '600');
-             table.style.width = '600px';
-          }
-
           // Ensure background colors are applied as attributes for legacy clients
           const tableBg = normalizeColor(table.style.backgroundColor);
           if (tableBg) {
             table.setAttribute('bgcolor', tableBg);
           }
         }
+      });
+
+      // Make nested 600px tables fluid (Gmail/mobile) while keeping max 600px.
+      // Outlook gets fixed width via the MSO wrapper in the copied fragment.
+      clone.querySelectorAll('table').forEach(t => {
+        const table = t as HTMLTableElement;
+        const widthAttr = (table.getAttribute('width') || '').trim();
+        const styleWidth = (table.style.width || '').trim();
+        const styleMaxWidth = (table.style.maxWidth || '').trim();
+
+        const is600 =
+          widthAttr === '600' ||
+          styleWidth === '600px' ||
+          styleMaxWidth === '600px';
+
+        if (!is600) return;
+
+        table.setAttribute('width', '100%');
+        table.style.width = '100%';
+        table.style.maxWidth = '600px';
+        table.style.margin = table.style.margin || '0 auto';
       });
 
       const html = clone.innerHTML;
