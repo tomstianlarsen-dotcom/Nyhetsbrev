@@ -542,11 +542,15 @@ export const Editor: React.FC = () => {
         <tr>
           <td align="center" style="padding: 0; background-color: ${COLORS.background};" bgcolor="${COLORS.background}">
       <![endif]-->
-      <div style="max-width: 600px; margin: 0 auto; text-align: left; background-color: ${COLORS.background}; font-family: Arial, Helvetica, sans-serif;">
-        <!--StartFragment-->
-        ${html}
-        <!--EndFragment-->
-      </div>
+      <table role="presentation" border="0" cellspacing="0" cellpadding="0" align="center" width="600" style="width:600px; max-width:600px; margin:0 auto; background-color:${COLORS.background};">
+        <tr>
+          <td align="left" style="padding:0; background-color:${COLORS.background}; font-family: Arial, Helvetica, sans-serif;">
+            <!--StartFragment-->
+            ${html}
+            <!--EndFragment-->
+          </td>
+        </tr>
+      </table>
       <!--[if mso]>
           </td>
         </tr>

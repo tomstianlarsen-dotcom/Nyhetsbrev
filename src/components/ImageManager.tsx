@@ -78,88 +78,119 @@ export const ImageManager: React.FC<ImageManagerProps> = ({ isOpen, onClose, onS
     setProgress(20);
 
     try {
-      // Step 1: Resize on client to stay under GitHub and bandwidth limits
+      // Step 1: Resize/compress on client to stay under GitHub Contents API limits.
       setError(null);
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const img = new Image();
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            let width = img.width;
-            let height = img.height;
+      const { dataUrl, contentBase64 } = await (async () => {
+        const fileToDataUrl = (f: File) =>
+          new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(f);
+          });
 
-            // Max dimensions for newsletter
-            const MAX_WIDTH = 1200; // Increased a bit for better quality on high-res displays
-            if (width > MAX_WIDTH) {
-              height = Math.round((height * MAX_WIDTH) / width);
-              width = MAX_WIDTH;
-            }
+        const sourceDataUrl = await fileToDataUrl(file);
 
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx?.drawImage(img, 0, 0, width, height);
+        const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+          const el = new Image();
+          el.onload = () => resolve(el);
+          el.onerror = reject;
+          el.src = sourceDataUrl;
+        });
 
-            const isPng = file.type === 'image/png';
-            const dataUrl = isPng 
-              ? canvas.toDataURL('image/png') 
-              : canvas.toDataURL('image/jpeg', 0.85); 
-            resolve(dataUrl);
-          };
-          img.onerror = reject;
-          img.src = event.target?.result as string;
+        const drawToCanvas = (targetWidth: number) => {
+          const canvas = document.createElement('canvas');
+          const scale = targetWidth / img.width;
+          const width = Math.round(img.width * scale);
+          const height = Math.round(img.height * scale);
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) throw new Error('Kunne ikke lage canvas-context.');
+          // White background so PNGs with transparency don't turn black when converting to JPEG.
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(img, 0, 0, width, height);
+          return canvas;
         };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
+
+        const canvasToDataUrl = (canvas: HTMLCanvasElement, mime: string, quality?: number) =>
+          new Promise<string>((resolve, reject) => {
+            canvas.toBlob(
+              (blob) => {
+                if (!blob) return reject(new Error('Kunne ikke komprimere bildet.'));
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result as string);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+              },
+              mime,
+              quality
+            );
+          });
+
+        // GitHub Contents API has a practical size ceiling around 1MB for file contents.
+        // Keep some margin for base64 overhead.
+        const MAX_BASE64_CHARS = 900_000;
+
+        const widths = [1200, 1000, 900, 800];
+        const qualities = [0.85, 0.8, 0.75, 0.7, 0.65];
+
+        for (const w of widths) {
+          const canvas = drawToCanvas(Math.min(w, img.width));
+
+          // Try PNG first only if input is PNG (keeps sharp graphics), otherwise go straight to JPEG.
+          if (file.type === 'image/png') {
+            const pngUrl = await canvasToDataUrl(canvas, 'image/png');
+            const pngB64 = pngUrl.split(',')[1] || '';
+            if (pngB64.length <= MAX_BASE64_CHARS) {
+              return { dataUrl: pngUrl, contentBase64: pngB64 };
+            }
+          }
+
+          for (const q of qualities) {
+            const jpgUrl = await canvasToDataUrl(canvas, 'image/jpeg', q);
+            const jpgB64 = jpgUrl.split(',')[1] || '';
+            if (jpgB64.length <= MAX_BASE64_CHARS) {
+              return { dataUrl: jpgUrl, contentBase64: jpgB64 };
+            }
+          }
+        }
+
+        throw new Error('Bildet er for stort etter komprimering. Prøv et mindre bilde.');
+      })();
 
       setProgress(40);
 
-      // Step 2: Upload to GitHub
-      const token = import.meta.env.VITE_GITHUB_TOKEN;
-      const owner = import.meta.env.VITE_GITHUB_OWNER;
-      const repo = import.meta.env.VITE_GITHUB_REPO;
+      // Step 2: Upload to GitHub (via Vercel API to avoid exposing token in the client)
       const basePath = import.meta.env.VITE_GITHUB_IMAGES_PATH || 'public/bilder';
-      const customDomain = import.meta.env.VITE_GITHUB_PAGES_DOMAIN;
-
-      if (!token || !owner || !repo) {
-        const missing = [];
-        if (!token) missing.push('VITE_GITHUB_TOKEN');
-        if (!owner) missing.push('VITE_GITHUB_OWNER');
-        if (!repo) missing.push('VITE_GITHUB_REPO');
-        throw new Error(`GitHub-konfigurasjon mangler: ${missing.join(', ')}. Sjekk "Settings" i AI Studio.`);
-      }
 
       const filename = `${Date.now()}-${file.name.replace(/\s+/g, '-')}`;
-      const path = `${basePath}/${filename}`.replace(/\/+/g, '/');
       
-      const response = await fetch(
-        `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
-        {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            message: `Add newsletter image: ${filename}`,
-            content: base64.split(',')[1], // strip data URL prefix
-          }),
-        }
-      );
+      const response = await fetch('/api/github/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filename,
+          contentBase64,
+          contentType: file.type,
+          basePath,
+        }),
+      });
       
       if (!response.ok) {
-        const errorData = await response.json();
-        const msg = errorData.message || response.statusText;
+        let msg = response.statusText;
+        try {
+          const errorData = await response.json();
+          msg = errorData.error || errorData.message || msg;
+        } catch {}
         if (response.status === 401 || msg.includes('Bad credentials')) {
-          console.error("GitHub Auth Error:", errorData);
-          throw new Error('Feil med GitHub-nøkkel (Bad credentials). Du må oppdatere VITE_GITHUB_TOKEN i AI Studio Settings (ikke bare i GitHub).');
+          throw new Error('Feil med GitHub-nøkkel (Bad credentials). Oppdater `VITE_GITHUB_TOKEN` i Vercel og redeploy.');
         }
-        throw new Error(`GitHub upload failed: ${msg}`);
+        throw new Error(`GitHub upload feilet (${response.status}): ${msg}`);
       }
 
-      const githubUrl = `https://raw.githubusercontent.com/${owner}/${repo}/main/${path}`;
+      const { url: githubUrl, githubPath } = await response.json();
       
       setProgress(80);
 
@@ -171,7 +202,7 @@ export const ImageManager: React.FC<ImageManagerProps> = ({ isOpen, onClose, onS
         type: file.type,
         uploadedAt: serverTimestamp(),
         userId: auth.currentUser?.uid || 'anonymous',
-        githubPath: path // Save path for potential deletion
+        githubPath: githubPath || undefined // Save path for potential deletion
       });
 
       setProgress(100);
@@ -181,7 +212,9 @@ export const ImageManager: React.FC<ImageManagerProps> = ({ isOpen, onClose, onS
       }, 500);
     } catch (err) {
       console.error("Upload error:", err);
-      setError("Kunne ikke behandle bildet. Prøv et mindre bilde.");
+      const message =
+        err instanceof Error ? err.message : 'Kunne ikke behandle bildet. Prøv et mindre bilde.';
+      setError(message);
       setUploading(false);
     }
   };
