@@ -417,6 +417,14 @@ export const Editor: React.FC = () => {
 
       // Clean up images for Outlook
       const base64Images: string[] = [];
+      // Outlook for Windows is more reliable when the hero/header image uses a fixed width in inline styles.
+      // We detect it as the first 600px-wide image inside a "line-height:0" container cell (the hero row).
+      let heroImg: HTMLImageElement | null = null;
+      const heroCandidate = clone.querySelector('td[style*="line-height: 0"][style*="font-size: 0"] img[width="600"]');
+      if (heroCandidate && heroCandidate.tagName === 'IMG') {
+        heroImg = heroCandidate as HTMLImageElement;
+      }
+
       clone.querySelectorAll('img').forEach(img => {
         const src = img.getAttribute('src') || '';
         
@@ -438,9 +446,15 @@ export const Editor: React.FC = () => {
         // Force width for Outlook
         const widthAttr = img.getAttribute('width');
         if (widthAttr) {
-          // Keep Outlook deterministic via the width attribute, but make modern clients fluid.
-          img.style.width = '100%';
-          img.style.maxWidth = widthAttr + 'px';
+          if (heroImg && img === heroImg) {
+            // Hero: fixed width improves Outlook/Windows rendering
+            img.style.width = widthAttr + 'px';
+            img.style.maxWidth = widthAttr + 'px';
+          } else {
+            // Other images: fluid sizing for Gmail/mobile, constrained by max-width
+            img.style.width = '100%';
+            img.style.maxWidth = widthAttr + 'px';
+          }
         }
       });
 
