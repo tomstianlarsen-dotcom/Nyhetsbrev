@@ -92,16 +92,14 @@
   image-rendering: -webkit-optimize-contrast;
 }
 
-/* Mobile optimizations for Newsletter Preview */
+/* Mobile layout for newsletter preview (typography via TYPOGRAPHY in Preview.tsx) */
 @media (max-width: 640px) {
-  .newsletter-preview td, 
-  .newsletter-preview p, 
-  .newsletter-preview div, 
-  .newsletter-preview h2, 
-  .newsletter-preview h3, 
+  .newsletter-preview td,
+  .newsletter-preview p,
+  .newsletter-preview div,
+  .newsletter-preview h2,
+  .newsletter-preview h3,
   .newsletter-preview a {
-    font-size: 104% !important; /* Minimal increase for readability */
-    line-height: 1.5 !important;
     word-break: break-word !important;
   }
   

@@ -6,7 +6,7 @@ import { pdf } from '@react-pdf/renderer';
 // @ts-ignore
 import html2pdf from 'html2pdf.js';
 import { NewsletterData, Section, ListItem, GridItem } from './types';
-import { DEFAULT_DATA, COLORS } from './constants';
+import { DEFAULT_DATA, COLORS, applyEmailTypography } from './constants';
 import { NewsletterPdfDocument } from './pdf/NewsletterPdf';
 import { Sidebar } from './components/Sidebar';
 import { Preview } from './components/Preview';
@@ -542,6 +542,9 @@ export const Editor: React.FC = () => {
         table.style.maxWidth = '600px';
         table.style.margin = table.style.margin || '0 auto';
       });
+
+      // E-post: bruk mobil-skala inline (Gmail ignorerer ofte @media i <style>)
+      applyEmailTypography(clone);
 
       const html = clone.innerHTML;
 
