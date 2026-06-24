@@ -4,13 +4,10 @@ import {
   Search, Grid, List as ListIcon
 } from 'lucide-react';
 import { 
-  ref, uploadBytesResumable, getDownloadURL, deleteObject 
-} from 'firebase/storage';
-import { 
   collection, addDoc, query, getDocs, deleteDoc, 
   doc, serverTimestamp, orderBy, onSnapshot 
 } from 'firebase/firestore';
-import { storage, db, ensureAuth, auth } from '../lib/firebase';
+import { db, ensureAuth, auth } from '../lib/firebase';
 import { toProxyImageUrl } from '../lib/imageUrls';
 import { cn } from '../lib/utils';
 import { motion } from 'motion/react';
@@ -79,9 +76,9 @@ export const ImageManager: React.FC<ImageManagerProps> = ({ isOpen, onClose, onS
     setProgress(20);
 
     try {
-      // Step 1: Resize/compress on client before upload to Firebase Storage.
+      // Step 1: Resize/compress on client to stay under GitHub Contents API limits.
       setError(null);
-      const { blob, contentType } = await (async () => {
+      const { contentBase64, contentType, compressedSize } = await (async () => {
         const fileToDataUrl = (f: File) =>
           new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
@@ -114,16 +111,22 @@ export const ImageManager: React.FC<ImageManagerProps> = ({ isOpen, onClose, onS
           return canvas;
         };
 
-        const canvasToBlob = (canvas: HTMLCanvasElement, mime: string, quality?: number) =>
-          new Promise<Blob>((resolve, reject) => {
+        const canvasToDataUrl = (canvas: HTMLCanvasElement, mime: string, quality?: number) =>
+          new Promise<string>((resolve, reject) => {
             canvas.toBlob(
-              (b) => (b ? resolve(b) : reject(new Error('Kunne ikke komprimere bildet.'))),
+              (blob) => {
+                if (!blob) return reject(new Error('Kunne ikke komprimere bildet.'));
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result as string);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+              },
               mime,
               quality
             );
           });
 
-        const MAX_BYTES = 2_000_000;
+        const MAX_BASE64_CHARS = 900_000;
         const widths = [1200, 1000, 900, 800];
         const qualities = [0.85, 0.8, 0.75, 0.7, 0.65];
 
@@ -131,16 +134,18 @@ export const ImageManager: React.FC<ImageManagerProps> = ({ isOpen, onClose, onS
           const canvas = drawToCanvas(Math.min(w, img.width));
 
           if (file.type === 'image/png') {
-            const pngBlob = await canvasToBlob(canvas, 'image/png');
-            if (pngBlob.size <= MAX_BYTES) {
-              return { blob: pngBlob, contentType: 'image/png' };
+            const pngUrl = await canvasToDataUrl(canvas, 'image/png');
+            const pngB64 = pngUrl.split(',')[1] || '';
+            if (pngB64.length <= MAX_BASE64_CHARS) {
+              return { contentBase64: pngB64, contentType: 'image/png', compressedSize: pngB64.length };
             }
           }
 
           for (const q of qualities) {
-            const jpgBlob = await canvasToBlob(canvas, 'image/jpeg', q);
-            if (jpgBlob.size <= MAX_BYTES) {
-              return { blob: jpgBlob, contentType: 'image/jpeg' };
+            const jpgUrl = await canvasToDataUrl(canvas, 'image/jpeg', q);
+            const jpgB64 = jpgUrl.split(',')[1] || '';
+            if (jpgB64.length <= MAX_BASE64_CHARS) {
+              return { contentBase64: jpgB64, contentType: 'image/jpeg', compressedSize: jpgB64.length };
             }
           }
         }
@@ -150,36 +155,43 @@ export const ImageManager: React.FC<ImageManagerProps> = ({ isOpen, onClose, onS
 
       setProgress(40);
 
-      // Step 2: Upload to Firebase Storage
-      const safeName = file.name.replace(/[^\w.\-()+]/g, '-');
-      const storagePath = `newsletter-images/${Date.now()}-${safeName}`;
-      const storageRef = ref(storage, storagePath);
+      // Step 2: Upload to GitHub (via Vercel API — images served to recipients via /api/image proxy)
+      const basePath = import.meta.env.VITE_GITHUB_IMAGES_PATH || 'public/bilder';
+      const filename = `${Date.now()}-${file.name.replace(/\s+/g, '-')}`;
 
-      await new Promise<void>((resolve, reject) => {
-        const task = uploadBytesResumable(storageRef, blob, { contentType });
-        task.on(
-          'state_changed',
-          (snapshot) => {
-            const pct = snapshot.totalBytes
-              ? (snapshot.bytesTransferred / snapshot.totalBytes) * 100
-              : 0;
-            setProgress(40 + pct * 0.5);
-          },
-          reject,
-          () => resolve()
-        );
+      const response = await fetch('/api/github/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filename,
+          contentBase64,
+          contentType,
+          basePath,
+        }),
       });
 
-      const downloadURL = await getDownloadURL(storageRef);
+      if (!response.ok) {
+        let msg = response.statusText;
+        try {
+          const errorData = await response.json();
+          msg = errorData.error || errorData.message || msg;
+        } catch {}
+        if (response.status === 401 || msg.includes('Bad credentials')) {
+          throw new Error('Feil med GitHub-nøkkel (Bad credentials). Oppdater `VITE_GITHUB_TOKEN` i Vercel og redeploy.');
+        }
+        throw new Error(`GitHub upload feilet (${response.status}): ${msg}`);
+      }
+
+      const { url: githubUrl, githubPath } = await response.json();
 
       setProgress(95);
 
       // Step 3: Save metadata to Firestore
       await addDoc(collection(db, 'images'), {
-        url: downloadURL,
-        storagePath,
+        url: githubUrl,
+        githubPath: githubPath || undefined,
         name: file.name,
-        size: blob.size,
+        size: compressedSize,
         type: contentType,
         uploadedAt: serverTimestamp(),
         userId: auth.currentUser?.uid || 'anonymous',
@@ -204,15 +216,6 @@ export const ImageManager: React.FC<ImageManagerProps> = ({ isOpen, onClose, onS
     setError(null);
 
     try {
-      if (image.storagePath) {
-        try {
-          await deleteObject(ref(storage, image.storagePath));
-        } catch (storageErr) {
-          console.error('Error deleting from Firebase Storage:', storageErr);
-        }
-      }
-
-      // Legacy: images stored on GitHub before Firebase migration
       const token = import.meta.env.VITE_GITHUB_TOKEN;
       const owner = import.meta.env.VITE_GITHUB_OWNER;
       const repo = import.meta.env.VITE_GITHUB_REPO;
