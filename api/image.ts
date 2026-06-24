@@ -1,15 +1,6 @@
-const ALLOWED_HOSTS = new Set([
-  'raw.githubusercontent.com',
-  'firebasestorage.googleapis.com',
-  'storage.googleapis.com',
-]);
+import { json, streamUpstreamImage } from './lib/imageProxy';
 
-function json(res: any, status: number, body: unknown) {
-  res.statusCode = status;
-  res.setHeader('Content-Type', 'application/json; charset=utf-8');
-  res.end(JSON.stringify(body));
-}
-
+/** Legacy: /api/image?src=https://... — prefer /api/image/{filename} for GitHub images. */
 export default async function handler(req: any, res: any) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
@@ -21,33 +12,8 @@ export default async function handler(req: any, res: any) {
     return json(res, 400, { error: 'Missing src query parameter' });
   }
 
-  let url: URL;
   try {
-    url = new URL(src);
-  } catch {
-    return json(res, 400, { error: 'Invalid image URL' });
-  }
-
-  if (url.protocol !== 'https:' || !ALLOWED_HOSTS.has(url.hostname)) {
-    return json(res, 403, { error: 'Image host not allowed' });
-  }
-
-  try {
-    const upstream = await fetch(url.toString(), {
-      headers: { 'User-Agent': 'nyhetsbrev-image-proxy/1.0' },
-    });
-
-    if (!upstream.ok) {
-      return json(res, upstream.status, { error: 'Failed to fetch image from upstream' });
-    }
-
-    const contentType = upstream.headers.get('content-type') || 'image/jpeg';
-    const buffer = Buffer.from(await upstream.arrayBuffer());
-
-    res.statusCode = 200;
-    res.setHeader('Content-Type', contentType);
-    res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
-    res.end(buffer);
+    await streamUpstreamImage(res, src);
   } catch {
     return json(res, 502, { error: 'Image proxy request failed' });
   }
