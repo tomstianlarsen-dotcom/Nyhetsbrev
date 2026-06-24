@@ -1,5 +1,6 @@
-import { getGithubRawUrl, isSafeImageFilename, json, streamUpstreamImage } from '../lib/imageProxy';
+import { getGithubRawUrl, isSafeImageFilename, json, streamUpstreamImage } from './lib/imageProxy';
 
+/** Clean URLs: /api/image/{filename} (via vercel.json rewrite) */
 export default async function handler(req: any, res: any) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
