@@ -1,4 +1,4 @@
-import { json, streamUpstreamImage } from './lib/imageProxy';
+import { json, streamUpstreamImage } from '../lib/imageProxy';
 
 /** Legacy: /api/image?src=https://... — prefer /api/image/{filename} for GitHub images. */
 export default async function handler(req: any, res: any) {
