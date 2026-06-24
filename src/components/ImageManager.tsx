@@ -11,6 +11,7 @@ import {
   doc, serverTimestamp, orderBy, onSnapshot 
 } from 'firebase/firestore';
 import { storage, db, ensureAuth, auth } from '../lib/firebase';
+import { toProxyImageUrl } from '../lib/imageUrls';
 import { cn } from '../lib/utils';
 import { motion } from 'motion/react';
 
@@ -78,9 +79,9 @@ export const ImageManager: React.FC<ImageManagerProps> = ({ isOpen, onClose, onS
     setProgress(20);
 
     try {
-      // Step 1: Resize/compress on client to stay under GitHub Contents API limits.
+      // Step 1: Resize/compress on client before upload to Firebase Storage.
       setError(null);
-      const { dataUrl, contentBase64 } = await (async () => {
+      const { blob, contentType } = await (async () => {
         const fileToDataUrl = (f: File) =>
           new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
@@ -107,52 +108,39 @@ export const ImageManager: React.FC<ImageManagerProps> = ({ isOpen, onClose, onS
           canvas.height = height;
           const ctx = canvas.getContext('2d');
           if (!ctx) throw new Error('Kunne ikke lage canvas-context.');
-          // White background so PNGs with transparency don't turn black when converting to JPEG.
           ctx.fillStyle = '#ffffff';
           ctx.fillRect(0, 0, width, height);
           ctx.drawImage(img, 0, 0, width, height);
           return canvas;
         };
 
-        const canvasToDataUrl = (canvas: HTMLCanvasElement, mime: string, quality?: number) =>
-          new Promise<string>((resolve, reject) => {
+        const canvasToBlob = (canvas: HTMLCanvasElement, mime: string, quality?: number) =>
+          new Promise<Blob>((resolve, reject) => {
             canvas.toBlob(
-              (blob) => {
-                if (!blob) return reject(new Error('Kunne ikke komprimere bildet.'));
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result as string);
-                reader.onerror = reject;
-                reader.readAsDataURL(blob);
-              },
+              (b) => (b ? resolve(b) : reject(new Error('Kunne ikke komprimere bildet.'))),
               mime,
               quality
             );
           });
 
-        // GitHub Contents API has a practical size ceiling around 1MB for file contents.
-        // Keep some margin for base64 overhead.
-        const MAX_BASE64_CHARS = 900_000;
-
+        const MAX_BYTES = 2_000_000;
         const widths = [1200, 1000, 900, 800];
         const qualities = [0.85, 0.8, 0.75, 0.7, 0.65];
 
         for (const w of widths) {
           const canvas = drawToCanvas(Math.min(w, img.width));
 
-          // Try PNG first only if input is PNG (keeps sharp graphics), otherwise go straight to JPEG.
           if (file.type === 'image/png') {
-            const pngUrl = await canvasToDataUrl(canvas, 'image/png');
-            const pngB64 = pngUrl.split(',')[1] || '';
-            if (pngB64.length <= MAX_BASE64_CHARS) {
-              return { dataUrl: pngUrl, contentBase64: pngB64 };
+            const pngBlob = await canvasToBlob(canvas, 'image/png');
+            if (pngBlob.size <= MAX_BYTES) {
+              return { blob: pngBlob, contentType: 'image/png' };
             }
           }
 
           for (const q of qualities) {
-            const jpgUrl = await canvasToDataUrl(canvas, 'image/jpeg', q);
-            const jpgB64 = jpgUrl.split(',')[1] || '';
-            if (jpgB64.length <= MAX_BASE64_CHARS) {
-              return { dataUrl: jpgUrl, contentBase64: jpgB64 };
+            const jpgBlob = await canvasToBlob(canvas, 'image/jpeg', q);
+            if (jpgBlob.size <= MAX_BYTES) {
+              return { blob: jpgBlob, contentType: 'image/jpeg' };
             }
           }
         }
@@ -162,47 +150,39 @@ export const ImageManager: React.FC<ImageManagerProps> = ({ isOpen, onClose, onS
 
       setProgress(40);
 
-      // Step 2: Upload to GitHub (via Vercel API to avoid exposing token in the client)
-      const basePath = import.meta.env.VITE_GITHUB_IMAGES_PATH || 'public/bilder';
+      // Step 2: Upload to Firebase Storage
+      const safeName = file.name.replace(/[^\w.\-()+]/g, '-');
+      const storagePath = `newsletter-images/${Date.now()}-${safeName}`;
+      const storageRef = ref(storage, storagePath);
 
-      const filename = `${Date.now()}-${file.name.replace(/\s+/g, '-')}`;
-      
-      const response = await fetch('/api/github/upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          filename,
-          contentBase64,
-          contentType: file.type,
-          basePath,
-        }),
+      await new Promise<void>((resolve, reject) => {
+        const task = uploadBytesResumable(storageRef, blob, { contentType });
+        task.on(
+          'state_changed',
+          (snapshot) => {
+            const pct = snapshot.totalBytes
+              ? (snapshot.bytesTransferred / snapshot.totalBytes) * 100
+              : 0;
+            setProgress(40 + pct * 0.5);
+          },
+          reject,
+          () => resolve()
+        );
       });
-      
-      if (!response.ok) {
-        let msg = response.statusText;
-        try {
-          const errorData = await response.json();
-          msg = errorData.error || errorData.message || msg;
-        } catch {}
-        if (response.status === 401 || msg.includes('Bad credentials')) {
-          throw new Error('Feil med GitHub-nøkkel (Bad credentials). Oppdater `VITE_GITHUB_TOKEN` i Vercel og redeploy.');
-        }
-        throw new Error(`GitHub upload feilet (${response.status}): ${msg}`);
-      }
 
-      const { url: githubUrl, githubPath } = await response.json();
-      
-      setProgress(80);
+      const downloadURL = await getDownloadURL(storageRef);
+
+      setProgress(95);
 
       // Step 3: Save metadata to Firestore
       await addDoc(collection(db, 'images'), {
-        url: githubUrl, 
+        url: downloadURL,
+        storagePath,
         name: file.name,
-        size: file.size,
-        type: file.type,
+        size: blob.size,
+        type: contentType,
         uploadedAt: serverTimestamp(),
         userId: auth.currentUser?.uid || 'anonymous',
-        githubPath: githubPath || undefined // Save path for potential deletion
       });
 
       setProgress(100);
@@ -224,10 +204,15 @@ export const ImageManager: React.FC<ImageManagerProps> = ({ isOpen, onClose, onS
     setError(null);
 
     try {
-      // If it's stored on GitHub, we SHOULD try to delete it, but it's complex because we need the SHA
-      // For now, we mainly focus on removing it from Firestore so it doesn't show up in the app.
-      // If we really want to delete from GitHub, we first need to GET the file to get the SHA.
-      
+      if (image.storagePath) {
+        try {
+          await deleteObject(ref(storage, image.storagePath));
+        } catch (storageErr) {
+          console.error('Error deleting from Firebase Storage:', storageErr);
+        }
+      }
+
+      // Legacy: images stored on GitHub before Firebase migration
       const token = import.meta.env.VITE_GITHUB_TOKEN;
       const owner = import.meta.env.VITE_GITHUB_OWNER;
       const repo = import.meta.env.VITE_GITHUB_REPO;
@@ -395,7 +380,7 @@ export const ImageManager: React.FC<ImageManagerProps> = ({ isOpen, onClose, onS
                   onClick={() => onSelect(img.id, img.url, img.name)}
                 >
                   <img 
-                    src={img.url} 
+                    src={toProxyImageUrl(img.url)} 
                     alt={img.name} 
                     className="w-full h-full object-cover transition-transform group-hover:scale-105"
                     referrerPolicy="no-referrer"
@@ -453,7 +438,7 @@ export const ImageManager: React.FC<ImageManagerProps> = ({ isOpen, onClose, onS
                   onClick={() => onSelect(img.id, img.url, img.name)}
                 >
                   <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-gray-50">
-                    <img src={img.url} alt={img.name} className="w-full h-full object-cover" />
+                    <img src={toProxyImageUrl(img.url)} alt={img.name} className="w-full h-full object-cover" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">{img.name}</p>

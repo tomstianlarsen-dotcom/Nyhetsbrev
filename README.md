@@ -4,7 +4,7 @@
 
 # Halogen Nyhetsbrevverktøy
 
-Internt nyhetsbrevverktøy (React + Vite + Firebase/Firestore) med bildehosting i GitHub.
+Internt nyhetsbrevverktøy (React + Vite + Firebase/Firestore) med bildehosting i Firebase Storage og proxy via Vercel.
 
 ## Run Locally
 
@@ -13,6 +13,6 @@ Internt nyhetsbrevverktøy (React + Vite + Firebase/Firestore) med bildehosting 
 
 1. Install dependencies:
    `npm install`
-2. Copy `.env.example` to `.env.local` and fill inn GitHub + Firebase config
+2. Copy `.env.example` to `.env.local` and set `VITE_APP_URL` + Firebase config
 3. Run the app:
    `npm run dev`

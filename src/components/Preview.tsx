@@ -2,6 +2,7 @@ import React from 'react';
 import { NewsletterData, Section } from '../types';
 import { COLORS, PLACEHOLDER_IMAGE, TYPOGRAPHY } from '../constants';
 import { useMediaQuery } from '../hooks/useMediaQuery';
+import { toProxyImageUrl } from '../lib/imageUrls';
 
 interface PreviewProps {
   data: NewsletterData;
@@ -34,11 +35,11 @@ export const Preview: React.FC<PreviewProps> = ({
 }) => {
   const getImageSrc = (src?: string) => {
     const fallback = libraryPlaceholderUrl || PLACEHOLDER_IMAGE;
-    if (!src || src === '' || src.includes('storage.googleapis.com') || src.includes('picsum.photos')) {
+    if (!src || src === '' || src.includes('picsum.photos')) {
       // If broken, empty, picsum (old default) or internal storage link, use placeholder
       return fallback;
     }
-    return src;
+    return toProxyImageUrl(src);
   };
 
   const ensureProtocol = (url: string | undefined) => {

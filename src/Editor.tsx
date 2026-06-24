@@ -7,6 +7,7 @@ import { pdf } from '@react-pdf/renderer';
 import html2pdf from 'html2pdf.js';
 import { NewsletterData, Section, ListItem, GridItem } from './types';
 import { DEFAULT_DATA, COLORS, applyEmailTypography } from './constants';
+import { rewriteImageUrlsInElement, getPublicAppOrigin } from './lib/imageUrls';
 import { NewsletterPdfDocument } from './pdf/NewsletterPdf';
 import { Sidebar } from './components/Sidebar';
 import { Preview } from './components/Preview';
@@ -545,6 +546,9 @@ export const Editor: React.FC = () => {
 
       // E-post: bruk mobil-skala inline (Gmail ignorerer ofte @media i <style>)
       applyEmailTypography(clone);
+
+      // Serve images via app domain — never expose GitHub/Firebase URLs to recipients
+      rewriteImageUrlsInElement(clone, getPublicAppOrigin());
 
       const html = clone.innerHTML;
 

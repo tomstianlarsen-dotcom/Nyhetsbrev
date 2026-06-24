@@ -10,6 +10,7 @@ import {
 } from '@react-pdf/renderer';
 import type { GridItem, ListItem, NewsletterData, Section } from '../types';
 import { COLORS } from '../constants';
+import { toProxyImageUrl } from '../lib/imageUrls';
 
 type Props = {
   data: NewsletterData;
@@ -125,6 +126,11 @@ function isHttpUrl(url: string | undefined): url is string {
   return t.startsWith('https://') || t.startsWith('http://');
 }
 
+function pdfImageSrc(url: string | undefined): string | undefined {
+  if (!isHttpUrl(url)) return undefined;
+  return toProxyImageUrl(url);
+}
+
 function splitParagraphs(text: string | undefined): string[] {
   if (!text) return [];
   return text.split(/\r?\n/).flatMap(line => (line.trim() ? [line] : [''])).filter(() => true);
@@ -166,7 +172,7 @@ function renderTextBlock(text: string | undefined) {
 function renderListItem(member: ListItem) {
   return (
     <View key={member.id} style={styles.listItem}>
-      {isHttpUrl(member.image) ? <Image style={styles.avatar} src={member.image} /> : <View style={styles.avatar} />}
+      {pdfImageSrc(member.image) ? <Image style={styles.avatar} src={pdfImageSrc(member.image)!} /> : <View style={styles.avatar} />}
       <View style={{ flex: 1 }}>
         <Text style={styles.memberName}>{member.name || ''}</Text>
         {renderTextBlock(member.bio)}
@@ -183,7 +189,7 @@ function renderListItem(member: ListItem) {
 function renderGridCard(item: GridItem) {
   return (
     <View key={item.id} style={styles.gridCard}>
-      {isHttpUrl(item.image) ? <Image style={styles.gridImage} src={item.image} /> : null}
+      {pdfImageSrc(item.image) ? <Image style={styles.gridImage} src={pdfImageSrc(item.image)!} /> : null}
       {item.imageCredit ? <Text style={styles.imageCredit}>Foto: {item.imageCredit}</Text> : null}
       <Text style={styles.memberName}>{item.title || ''}</Text>
       {renderTextBlock(item.content)}
@@ -219,7 +225,7 @@ function renderSection(section: Section, index: number) {
   if (section.type === 'full-image') {
     return (
       <View key={section.id} style={wrapperStyle}>
-        {isHttpUrl(section.image) ? <Image style={styles.imageFull} src={section.image} /> : null}
+        {pdfImageSrc(section.image) ? <Image style={styles.imageFull} src={pdfImageSrc(section.image)!} /> : null}
         {section.imageCredit ? <Text style={styles.imageCredit}>Foto: {section.imageCredit}</Text> : null}
         {section.linkUrl ? (
           <Text>
@@ -232,9 +238,10 @@ function renderSection(section: Section, index: number) {
 
   if (section.type === 'image-text') {
     const imageFirst = section.imagePosition === 'left';
-    const imageNode = isHttpUrl(section.image) ? (
+    const proxied = pdfImageSrc(section.image);
+    const imageNode = proxied ? (
       <View>
-        <Image style={styles.imageInline} src={section.image} />
+        <Image style={styles.imageInline} src={proxied} />
         {section.imageCredit ? <Text style={styles.imageCredit}>Foto: {section.imageCredit}</Text> : null}
       </View>
     ) : null;
@@ -306,9 +313,9 @@ export function NewsletterPdfDocument({ data, title }: Props) {
     <Document title={title || 'Nyhetsbrev'}>
       <Page size={singlePageSize} style={styles.page}>
         <View style={styles.container}>
-          {isHttpUrl(data.heroImage) ? (
+          {pdfImageSrc(data.heroImage) ? (
             <View style={styles.hero}>
-              <Image style={styles.heroImage} src={data.heroImage} />
+              <Image style={styles.heroImage} src={pdfImageSrc(data.heroImage)!} />
               {data.heroImageCredit ? (
                 <Text style={styles.heroCredit}>Foto: {data.heroImageCredit}</Text>
               ) : null}
@@ -348,9 +355,9 @@ export function NewsletterPdfDocument({ data, title }: Props) {
                 </View>
               </View>
 
-              {isHttpUrl(data.footerLogoFull) ? (
+              {pdfImageSrc(data.footerLogoFull) ? (
                 <View style={styles.footerDivider}>
-                  <Image style={styles.footerLogo} src={data.footerLogoFull} />
+                  <Image style={styles.footerLogo} src={pdfImageSrc(data.footerLogoFull)!} />
                 </View>
               ) : null}
             </View>
