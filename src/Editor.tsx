@@ -8,6 +8,7 @@ import html2pdf from 'html2pdf.js';
 import { NewsletterData, Section, ListItem, GridItem } from './types';
 import { DEFAULT_DATA, COLORS, applyEmailTypography, NEWSLETTER_MOBILE_LAYOUT_CSS } from './constants';
 import { rewriteImageUrlsInElement, getPublicAppOrigin } from './lib/imageUrls';
+import { prepareImageTextTablesForEmail } from './lib/emailLayout';
 import { NewsletterPdfDocument } from './pdf/NewsletterPdf';
 import { Sidebar } from './components/Sidebar';
 import { Preview } from './components/Preview';
@@ -544,6 +545,9 @@ export const Editor: React.FC = () => {
         table.style.margin = table.style.margin || '0 auto';
       });
 
+      // Bilde+tekst: side-om-side i e-post (mobil-stacking kun via @media der støttet)
+      prepareImageTextTablesForEmail(clone);
+
       // E-post: bruk mobil-skala inline (Gmail ignorerer ofte @media i <style>)
       applyEmailTypography(clone);
 
@@ -562,8 +566,6 @@ export const Editor: React.FC = () => {
   <style>
     /* Prevent Windows 10 Mail from resizing images */
     img { -ms-interpolation-mode: bicubic; }
-    /* Avoid horizontal overflow in Gmail */
-    table { table-layout: fixed; }
     td { word-break: break-word; overflow-wrap: break-word; }
     /* Force mobile apps to show text at regular size */
     body { width: 100% !important; -webkit-text-size-adjust: 100% !important; -ms-text-size-adjust: 100% !important; margin: 0; padding: 0; }
