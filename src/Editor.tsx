@@ -448,8 +448,8 @@ export const Editor: React.FC = () => {
         const widthAttr = img.getAttribute('width');
         if (widthAttr) {
           if (heroImg && img === heroImg) {
-            // Hero: fixed width improves Outlook/Windows rendering
-            img.style.width = widthAttr + 'px';
+            // Fluid on mobile (avoids viewport zoom-out); width attr keeps Outlook happy
+            img.style.width = '100%';
             img.style.maxWidth = widthAttr + 'px';
           } else {
             // Other images: fluid sizing for Gmail/mobile, constrained by max-width
@@ -573,6 +573,13 @@ export const Editor: React.FC = () => {
     @media only screen and (max-width: 600px) {
       .full-width { width: 100% !important; height: auto !important; }
       .mobile-padding { padding: 10px !important; }
+      .nl-stack td { display: block !important; width: 100% !important; max-width: 100% !important; box-sizing: border-box !important; }
+      .nl-stack td[width="20"] { display: none !important; height: 0 !important; font-size: 0 !important; line-height: 0 !important; }
+      .nl-body, p[style*="font-size: 18px"], div[style*="font-size: 18px"] {
+        font-size: 18px !important;
+        line-height: 27px !important;
+      }
+      h2[style*="font-size: 22px"], h2[style*="font-size: 30px"] { line-height: 1.3 !important; }
     }
   </style>
 </head>
@@ -729,7 +736,8 @@ export const Editor: React.FC = () => {
       <main className="flex-1 overflow-y-auto p-12 pt-24 flex flex-col items-center" style={{ backgroundColor: COLORS.background }}>
         <Preview 
           data={data} 
-          previewRef={previewRef} 
+          previewRef={previewRef}
+          typographyMode="desktop"
           onlineUrl={(() => {
             if (id === 'new') return '#';
             const origin = window.location.origin;

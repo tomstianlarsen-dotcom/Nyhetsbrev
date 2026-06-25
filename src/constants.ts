@@ -59,36 +59,78 @@ export const TYPOGRAPHY: { desktop: TypographyScale; mobile: TypographyScale } =
   },
 };
 
-/** Map desktop inline sizes to mobile/email sizes when copying HTML for e-post. */
+function parsePx(value: string): number | null {
+  const match = /^(\d+(?:\.\d+)?)px$/.exec(value.trim());
+  return match ? Number(match[1]) : null;
+}
+
+const EMAIL_TYPOGRAPHY_SCALE = [
+  { desktop: '8px', mobile: '9px', desktopLh: '10px', mobileLh: '11px' },
+  { desktop: '10px', mobile: '11px', desktopLh: '12px', mobileLh: '13px' },
+  { desktop: '13px', mobile: '14px', desktopLh: '22px', mobileLh: '25px' },
+  { desktop: '14px', mobile: '16px', desktopLh: '20px', mobileLh: '24px' },
+  { desktop: '16px', mobile: '18px', desktopLh: '24px', mobileLh: '27px' },
+  { desktop: '20px', mobile: '22px', desktopLh: '26px', mobileLh: '29px' },
+  { desktop: '28px', mobile: '30px', desktopLh: '36px', mobileLh: '38px' },
+] as const;
+
+/** Force mobile/email typography inline (Gmail ignores most @media in <style>). */
 export function applyEmailTypography(root: HTMLElement): void {
-  const d = TYPOGRAPHY.desktop;
   const m = TYPOGRAPHY.mobile;
+  const mobileFontSizes = new Set(EMAIL_TYPOGRAPHY_SCALE.map((s) => s.mobile));
 
-  const fontSizeMap: Record<string, string> = {
-    [d.captionSm]: m.captionSm,
-    [d.caption]: m.caption,
-    [d.meta]: m.meta,
-    [d.small]: m.small,
-    [d.body]: m.body,
-    [d.heading]: m.heading,
-    [d.headingLg]: m.headingLg,
-  };
-
-  const lineHeightMap: Record<string, string> = {
-    [d.captionSmLineHeight]: m.captionSmLineHeight,
-    [d.captionLineHeight]: m.captionLineHeight,
-    [d.smallLineHeight]: m.smallLineHeight,
-    [d.bodyLineHeight]: m.bodyLineHeight,
-    [d.headingLineHeight]: m.headingLineHeight,
-    [d.headingLgLineHeight]: m.headingLgLineHeight,
-    [d.footerLineHeight]: m.footerLineHeight,
-  };
+  const fontSizeMap: Record<string, string> = {};
+  const lineHeightMap: Record<string, string> = {};
+  for (const scale of EMAIL_TYPOGRAPHY_SCALE) {
+    fontSizeMap[scale.desktop] = scale.mobile;
+    lineHeightMap[scale.desktopLh] = scale.mobileLh;
+  }
 
   root.querySelectorAll<HTMLElement>('[style]').forEach((el) => {
     const fs = el.style.fontSize;
     const lh = el.style.lineHeight;
-    if (fs && fontSizeMap[fs]) el.style.fontSize = fontSizeMap[fs];
-    if (lh && lineHeightMap[lh]) el.style.lineHeight = lineHeightMap[lh];
+
+    if (fs && !mobileFontSizes.has(fs)) {
+      if (fontSizeMap[fs]) {
+        el.style.fontSize = fontSizeMap[fs];
+      } else {
+        const px = parsePx(fs);
+        if (px !== null) {
+          for (const scale of EMAIL_TYPOGRAPHY_SCALE) {
+            const desktopPx = parsePx(scale.desktop);
+            if (desktopPx !== null && px <= desktopPx) {
+              el.style.fontSize = scale.mobile;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    if (lh && !Object.values(lineHeightMap).includes(lh)) {
+      if (lineHeightMap[lh]) {
+        el.style.lineHeight = lineHeightMap[lh];
+      }
+    }
+  });
+
+  // Links inside body copy often lack explicit font-size; inheritance is unreliable in email clients.
+  root.querySelectorAll<HTMLElement>('p a, div[style*="color: rgb(48, 48, 48)"] a, div[style*="#303030"] a').forEach((el) => {
+    if (!el.style.fontSize) {
+      el.style.fontSize = m.body;
+      el.style.lineHeight = m.bodyLineHeight;
+    }
+  });
+
+  root.querySelectorAll<HTMLElement>('p, div').forEach((el) => {
+    const color = el.style.color;
+    const isBodyText =
+      color === '#303030' ||
+      color === 'rgb(48, 48, 48)' ||
+      color === COLORS.text;
+    if (isBodyText && el.style.fontSize && mobileFontSizes.has(el.style.fontSize)) {
+      el.classList.add('nl-body');
+    }
   });
 }
 

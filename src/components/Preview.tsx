@@ -15,6 +15,8 @@ interface PreviewProps {
   onUpdateData?: (updates: Partial<NewsletterData>) => void;
   libraryPlaceholderUrl?: string;
   hideOnlineLink?: boolean;
+  /** Editor: always desktop scale. Public view: responsive. */
+  typographyMode?: 'auto' | 'desktop';
   activeSectionId: string | null;
   setActiveSectionId: (id: string | null) => void;
 }
@@ -30,6 +32,7 @@ export const Preview: React.FC<PreviewProps> = ({
   onUpdateData,
   libraryPlaceholderUrl,
   hideOnlineLink,
+  typographyMode = 'auto',
   activeSectionId,
   setActiveSectionId
 }) => {
@@ -116,8 +119,9 @@ export const Preview: React.FC<PreviewProps> = ({
   const showOnlineLink = onlineUrl && !isBrowserView && !hideOnlineLink;
 
   const isEditable = activeSectionId !== null || !!onUpdateSection;
-  const isMobile = useMediaQuery('(max-width: 640px)');
-  const t = isMobile ? TYPOGRAPHY.mobile : TYPOGRAPHY.desktop;
+  const isMobileViewport = useMediaQuery('(max-width: 640px)');
+  const useMobileTypography = typographyMode === 'auto' && isMobileViewport;
+  const t = useMobileTypography ? TYPOGRAPHY.mobile : TYPOGRAPHY.desktop;
 
   return (
     <div 
@@ -245,7 +249,7 @@ export const Preview: React.FC<PreviewProps> = ({
                         {section.type === 'image-text' && (
                           <tr onClick={() => setActiveSectionId(section.id)}>
                             <td style={{ padding: '30px', backgroundColor: secBg, fontFamily: 'Arial, sans-serif' }} align="left">
-                              <table role="presentation" border={0} cellPadding={0} cellSpacing={0} width="100%" style={{ borderCollapse: 'collapse', width: '100%' }}>
+                              <table role="presentation" className="nl-stack" border={0} cellPadding={0} cellSpacing={0} width="100%" style={{ borderCollapse: 'collapse', width: '100%' }}>
                                 <tbody>
                                   <tr>
                                     {section.imagePosition === 'left' ? (
