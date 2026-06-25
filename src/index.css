@@ -92,7 +92,7 @@
   image-rendering: -webkit-optimize-contrast;
 }
 
-/* Mobile layout for newsletter preview (typography via TYPOGRAPHY in Preview.tsx) */
+/* Mobile layout — keep in sync with NEWSLETTER_MOBILE_LAYOUT_CSS in constants.ts */
 @media (max-width: 640px) {
   .newsletter-preview td,
   .newsletter-preview p,
@@ -102,24 +102,56 @@
   .newsletter-preview a {
     word-break: break-word !important;
   }
-  
-  /* Reduce padding on mobile */
-  .newsletter-preview td {
-    padding-left: 15px !important;
-    padding-right: 15px !important;
-  }
-  
-  /* Responsive images without forcing height auto on everything */
-  .newsletter-preview img {
-    max-width: 100% !important;
-    height: auto; /* Not important, allow inline overrides */
-  }
 
-  /* Ensure table cells stack on mobile */
-  .newsletter-preview td {
+  .newsletter-preview .nl-hero,
+  .newsletter-preview .nl-full-bleed {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+  .newsletter-preview .nl-hero {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+  }
+  .newsletter-preview .nl-content-pad {
+    padding: 20px 15px !important;
+  }
+  .newsletter-preview .nl-byline {
+    padding: 16px 15px 4px !important;
+  }
+  .newsletter-preview .nl-footer-pad {
+    padding: 32px 15px 0 !important;
+  }
+  .newsletter-preview .nl-footer-pad-bottom {
+    padding: 0 15px 32px !important;
+  }
+  .newsletter-preview .nl-stack td {
     display: block !important;
     width: 100% !important;
+    max-width: 100% !important;
     box-sizing: border-box !important;
+  }
+  .newsletter-preview .nl-stack td[width="20"],
+  .newsletter-preview .nl-stack td[width="15"] {
+    display: none !important;
+    height: 0 !important;
+    font-size: 0 !important;
+    line-height: 0 !important;
+    padding: 0 !important;
+  }
+  .newsletter-preview .nl-stack .nl-stack-col {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+  .newsletter-preview .nl-stack .nl-stack-image {
+    padding-bottom: 16px !important;
+  }
+  .newsletter-preview .nl-link-pad {
+    padding: 12px 15px !important;
+  }
+
+  .newsletter-preview img {
+    max-width: 100% !important;
+    height: auto;
   }
 }
 

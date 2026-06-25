@@ -154,7 +154,7 @@ export const Preview: React.FC<PreviewProps> = ({
                 <tbody>
                   {/* Hero */}
                   <tr onClick={() => setActiveSectionId('header')}>
-                    <td align="center" style={{ padding: 0, lineHeight: 0, fontSize: 0, fontFamily: 'Arial, sans-serif' }}>
+                    <td align="center" className="nl-hero" style={{ padding: 0, lineHeight: 0, fontSize: 0, fontFamily: 'Arial, sans-serif' }}>
                       <img 
                         src={getImageSrc(data.heroImage)} 
                         alt={data.heroImageAlt || 'Header'} 
@@ -174,7 +174,7 @@ export const Preview: React.FC<PreviewProps> = ({
                   {/* Byline */}
                   {data.byline !== undefined && (
                     <tr onClick={() => setActiveSectionId('header')}>
-                      <td style={{ padding: '20px 30px 5px 30px', backgroundColor: '#feffff', textAlign: 'left' }}>
+                      <td className="nl-byline" style={{ padding: '20px 30px 5px 30px', backgroundColor: '#feffff', textAlign: 'left' }}>
                         <h3 
                           contentEditable={isEditable}
                           suppressContentEditableWarning
@@ -211,7 +211,7 @@ export const Preview: React.FC<PreviewProps> = ({
                       <React.Fragment key={section.id}>
                         {section.type === 'text' && (
                           <tr onClick={() => setActiveSectionId(section.id)}>
-                            <td style={{ padding: '30px', backgroundColor: secBg, fontFamily: 'Arial, sans-serif' }}>
+                            <td className="nl-content-pad" style={{ padding: '30px', backgroundColor: secBg, fontFamily: 'Arial, sans-serif' }}>
                               <h2 
                                 contentEditable={isEditable}
                                 suppressContentEditableWarning
@@ -248,14 +248,14 @@ export const Preview: React.FC<PreviewProps> = ({
 
                         {section.type === 'image-text' && (
                           <tr onClick={() => setActiveSectionId(section.id)}>
-                            <td style={{ padding: '30px', backgroundColor: secBg, fontFamily: 'Arial, sans-serif' }} align="left">
+                            <td className="nl-content-pad" style={{ padding: '30px', backgroundColor: secBg, fontFamily: 'Arial, sans-serif' }} align="left">
                               <table role="presentation" className="nl-stack" border={0} cellPadding={0} cellSpacing={0} width="100%" style={{ borderCollapse: 'collapse', width: '100%' }}>
                                 <tbody>
                                   <tr>
                                     {section.imagePosition === 'left' ? (
                                       <>
                                         {/* Image Column */}
-                                        <td width="220" valign="top" style={{ width: '220px', paddingBottom: '20px' }}>
+                                        <td width="220" valign="top" className="nl-stack-col nl-stack-image" style={{ width: '220px', paddingBottom: '20px' }}>
                                           {section.linkUrl ? (
                                             <a href={ensureProtocol(section.linkUrl)} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
                                               <img 
@@ -295,7 +295,7 @@ export const Preview: React.FC<PreviewProps> = ({
                                         {/* Spacer */}
                                         <td width="20" style={{ width: '20px' }}>&nbsp;</td>
                                         {/* Text Column */}
-                                          <td width="300" valign="top" style={{ width: '300px', textAlign: 'left', paddingRight: '20px', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+                                          <td width="300" valign="top" className="nl-stack-col" style={{ width: '300px', textAlign: 'left', paddingRight: '20px', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                                             <h2 
                                               contentEditable={isEditable}
                                               suppressContentEditableWarning
@@ -331,7 +331,7 @@ export const Preview: React.FC<PreviewProps> = ({
                                     ) : (
                                       <>
                                         {/* Text Column */}
-                                          <td width="300" valign="top" style={{ width: '300px', textAlign: 'left', paddingRight: '25px', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+                                          <td width="300" valign="top" className="nl-stack-col" style={{ width: '300px', textAlign: 'left', paddingRight: '25px', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                                             <h2 
                                               contentEditable={isEditable}
                                               suppressContentEditableWarning
@@ -366,7 +366,7 @@ export const Preview: React.FC<PreviewProps> = ({
                                         {/* Spacer */}
                                         <td width="20" style={{ width: '20px' }}>&nbsp;</td>
                                         {/* Image Column */}
-                                        <td width="220" valign="top" style={{ width: '220px', paddingBottom: '20px' }}>
+                                        <td width="220" valign="top" className="nl-stack-col nl-stack-image" style={{ width: '220px', paddingBottom: '20px' }}>
                                           {section.linkUrl ? (
                                             <a href={ensureProtocol(section.linkUrl)} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
                                               <img 
@@ -414,7 +414,7 @@ export const Preview: React.FC<PreviewProps> = ({
 
                         {section.type === 'full-image' && (
                           <tr onClick={() => setActiveSectionId(section.id)}>
-                            <td style={{ padding: 0, backgroundColor: secBg }}>
+                            <td className="nl-full-bleed" style={{ padding: 0, backgroundColor: secBg }}>
                               {section.linkUrl ? (
                                 <a href={ensureProtocol(section.linkUrl)} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
                                   <img 
@@ -451,7 +451,7 @@ export const Preview: React.FC<PreviewProps> = ({
                                 </div>
                               )}
                               {section.linkUrl && (
-                                <div style={{ padding: '15px 30px' }}>
+                                <div className="nl-link-pad" style={{ padding: '15px 30px' }}>
                                   <a 
                                     href={ensureProtocol(section.linkUrl)} 
                                     target="_blank"
@@ -470,7 +470,7 @@ export const Preview: React.FC<PreviewProps> = ({
                           const items = section.gridItems || [];
                           return (
                             <tr onClick={() => setActiveSectionId(section.id)}>
-                              <td style={{ padding: '30px', backgroundColor: secBg, fontFamily: 'Arial, sans-serif' }} align="center">
+                              <td className="nl-content-pad" style={{ padding: '30px', backgroundColor: secBg, fontFamily: 'Arial, sans-serif' }} align="center">
                                 <table role="presentation" border={0} cellPadding={0} cellSpacing={0} width="100%" style={{ borderCollapse: 'collapse' }}>
                                   <tbody>
                                     {/* Grid items in a simpler row-based structure for maximum stability */}
@@ -563,7 +563,7 @@ export const Preview: React.FC<PreviewProps> = ({
 
                         {section.type === 'list' && (
                           <tr onClick={() => setActiveSectionId(section.id)}>
-                            <td style={{ padding: '30px', backgroundColor: secBg, fontFamily: 'Arial, sans-serif' }}>
+                            <td className="nl-content-pad" style={{ padding: '30px', backgroundColor: secBg, fontFamily: 'Arial, sans-serif' }}>
                               <h2 
                                 contentEditable={isEditable}
                                 suppressContentEditableWarning
@@ -671,7 +671,7 @@ export const Preview: React.FC<PreviewProps> = ({
 
                   {/* Footer */}
                   <tr onClick={() => setActiveSectionId('footer')}>
-                    <td style={{ padding: '40px 30px 0 30px', backgroundColor: COLORS.darkBlue, color: '#ffffff', fontFamily: 'Arial, sans-serif' }}>
+                    <td className="nl-footer-pad" style={{ padding: '40px 30px 0 30px', backgroundColor: COLORS.darkBlue, color: '#ffffff', fontFamily: 'Arial, sans-serif' }}>
                       <table role="presentation" width="100%" cellPadding="0" cellSpacing="0" border={0} style={{ borderCollapse: 'collapse' }}>
                         <tbody>
                           <tr>
@@ -714,7 +714,7 @@ export const Preview: React.FC<PreviewProps> = ({
                     </td>
                   </tr>
                   <tr onClick={() => setActiveSectionId('footer')}>
-                    <td style={{ backgroundColor: COLORS.darkBlue, padding: '0 30px 40px 30px' }}>
+                    <td className="nl-footer-pad-bottom" style={{ backgroundColor: COLORS.darkBlue, padding: '0 30px 40px 30px' }}>
                       <div style={{ msoLineHeightRule: 'exactly', borderTop: '1px solid #354E7E', paddingTop: '25px' }}>
                         <img 
                           src={getImageSrc(data.footerLogoFull || data.footerLogoLeft)} 
@@ -730,7 +730,7 @@ export const Preview: React.FC<PreviewProps> = ({
                   
                   {/* Subscription Links */}
                   <tr>
-                    <td style={{ padding: '20px 30px', backgroundColor: COLORS.background, fontFamily: 'Arial, sans-serif' }}>
+                    <td className="nl-content-pad" style={{ padding: '20px 30px', backgroundColor: COLORS.background, fontFamily: 'Arial, sans-serif' }}>
                       <table role="presentation" width="100%" cellPadding="0" cellSpacing="0" border={0} style={{ borderCollapse: 'collapse' }}>
                         <tbody>
                           <tr>

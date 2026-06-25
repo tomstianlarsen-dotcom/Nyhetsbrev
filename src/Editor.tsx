@@ -6,7 +6,7 @@ import { pdf } from '@react-pdf/renderer';
 // @ts-ignore
 import html2pdf from 'html2pdf.js';
 import { NewsletterData, Section, ListItem, GridItem } from './types';
-import { DEFAULT_DATA, COLORS, applyEmailTypography } from './constants';
+import { DEFAULT_DATA, COLORS, applyEmailTypography, NEWSLETTER_MOBILE_LAYOUT_CSS } from './constants';
 import { rewriteImageUrlsInElement, getPublicAppOrigin } from './lib/imageUrls';
 import { NewsletterPdfDocument } from './pdf/NewsletterPdf';
 import { Sidebar } from './components/Sidebar';
@@ -572,9 +572,7 @@ export const Editor: React.FC = () => {
     
     @media only screen and (max-width: 600px) {
       .full-width { width: 100% !important; height: auto !important; }
-      .mobile-padding { padding: 10px !important; }
-      .nl-stack td { display: block !important; width: 100% !important; max-width: 100% !important; box-sizing: border-box !important; }
-      .nl-stack td[width="20"] { display: none !important; height: 0 !important; font-size: 0 !important; line-height: 0 !important; }
+      ${NEWSLETTER_MOBILE_LAYOUT_CSS}
       .nl-body, p[style*="font-size: 18px"], div[style*="font-size: 18px"] {
         font-size: 18px !important;
         line-height: 27px !important;

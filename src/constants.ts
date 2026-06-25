@@ -134,6 +134,55 @@ export function applyEmailTypography(root: HTMLElement): void {
   });
 }
 
+/** Mobile layout rules — shared by online preview (index.css) and email copy (Editor). */
+export const NEWSLETTER_MOBILE_LAYOUT_CSS = `
+  .nl-hero,
+  .nl-full-bleed {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+  .nl-hero {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+  }
+  .nl-content-pad {
+    padding: 20px 15px !important;
+  }
+  .nl-byline {
+    padding: 16px 15px 4px !important;
+  }
+  .nl-footer-pad {
+    padding: 32px 15px 0 !important;
+  }
+  .nl-footer-pad-bottom {
+    padding: 0 15px 32px !important;
+  }
+  .nl-stack td {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  .nl-stack td[width="20"],
+  .nl-stack td[width="15"] {
+    display: none !important;
+    height: 0 !important;
+    font-size: 0 !important;
+    line-height: 0 !important;
+    padding: 0 !important;
+  }
+  .nl-stack .nl-stack-col {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+  .nl-stack .nl-stack-image {
+    padding-bottom: 16px !important;
+  }
+  .nl-link-pad {
+    padding: 12px 15px !important;
+  }
+`;
+
 export const PLACEHOLDER_IMAGE = `data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%22600%22%20height%3D%22400%22%20viewBox%3D%220%200%20600%20400%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Crect%20width%3D%22100%25%22%20height%3D%22100%25%22%20fill%3D%22%23eee%22%2F%3E%3Ctext%20x%3D%2250%25%22%20y%3D%2250%25%22%20font-family%3D%22Arial%2C%20sans-serif%22%20font-size%3D%2224%22%20fill%3D%22%23aaa%22%20text-anchor%3D%22middle%22%20dy%3D%22.3em%22%3E%20%3C%2Ftext%3E%3C%2Fsvg%3E`;
 
 export const DEFAULT_DATA: NewsletterData = {
