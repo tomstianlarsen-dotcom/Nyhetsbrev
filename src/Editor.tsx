@@ -577,7 +577,8 @@ export const Editor: React.FC = () => {
         font-size: 18px !important;
         line-height: 27px !important;
       }
-      h2[style*="font-size: 22px"], h2[style*="font-size: 30px"] { line-height: 1.3 !important; }
+      h2[style*="font-size: 24px"], h2[style*="font-size: 30px"] { line-height: 1.3 !important; font-weight: 600 !important; }
+      h3[style*="font-size: 24px"] { font-weight: 600 !important; }
     }
   </style>
 </head>

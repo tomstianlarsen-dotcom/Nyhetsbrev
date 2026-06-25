@@ -204,7 +204,7 @@ export const Preview: React.FC<PreviewProps> = ({
                     const secBg = section.backgroundColor === 'blue' ? COLORS.lightBlue : '#feffff';
                     const isFirst = index === 0;
                     const headingSize = isFirst ? t.headingLg : t.heading;
-                    const headingWeight = isFirst ? 'bold' : 'normal';
+                    const headingWeight = '600';
                     const headingLineHeight = isFirst ? t.headingLgLineHeight : t.headingLineHeight;
 
                     return (
@@ -522,7 +522,7 @@ export const Preview: React.FC<PreviewProps> = ({
                                                   suppressContentEditableWarning
                                                   onFocus={() => setActiveSectionId(section.id)}
                                                   onBlur={(e) => onUpdateGridItem && onUpdateGridItem(section.id, item.id, { title: e.currentTarget.innerText })}
-                                                  style={{ margin: '0 0 10px 0', color: COLORS.darkBlue, fontSize: t.heading, fontWeight: 'normal', lineHeight: t.headingLineHeight, fontFamily: 'Arial, sans-serif', outline: 'none' }}
+                                                  style={{ margin: '0 0 10px 0', color: COLORS.darkBlue, fontSize: t.heading, fontWeight: '600', lineHeight: t.headingLineHeight, fontFamily: 'Arial, sans-serif', outline: 'none' }}
                                                 >
                                                   {item.title}
                                                 </h3>
@@ -627,7 +627,7 @@ export const Preview: React.FC<PreviewProps> = ({
                                                   suppressContentEditableWarning
                                                   onFocus={() => setActiveSectionId(section.id)}
                                                   onBlur={(e) => onUpdateListItem && onUpdateListItem(section.id, member.id, { name: e.currentTarget.innerText })}
-                                                  style={{ margin: '0 0 4px 0', color: COLORS.darkBlue, fontSize: t.heading, fontWeight: 'normal', lineHeight: t.headingLineHeight, fontFamily: 'Arial, sans-serif', outline: 'none' }}
+                                                  style={{ margin: '0 0 4px 0', color: COLORS.darkBlue, fontSize: t.heading, fontWeight: '600', lineHeight: t.headingLineHeight, fontFamily: 'Arial, sans-serif', outline: 'none' }}
                                                 >
                                                   {member.name}
                                                 </h3>
