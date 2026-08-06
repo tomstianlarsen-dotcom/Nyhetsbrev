@@ -14,6 +14,13 @@ function json(res: any, status: number, body: unknown) {
   res.end(JSON.stringify(body));
 }
 
+function setImageResponseHeaders(res: any, contentType: string) {
+  res.setHeader('Content-Type', contentType);
+  res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+}
+
 function getGithubRawUrl(filename: string): string {
   const owner = process.env.VITE_GITHUB_OWNER || process.env.GITHUB_OWNER || DEFAULT_OWNER;
   const repo = process.env.VITE_GITHUB_REPO || process.env.GITHUB_REPO || DEFAULT_REPO;
@@ -58,8 +65,7 @@ async function streamUpstreamImage(res: any, upstreamUrl: string): Promise<void>
   const buffer = Buffer.from(await upstream.arrayBuffer());
 
   res.statusCode = 200;
-  res.setHeader('Content-Type', contentType);
-  res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+  setImageResponseHeaders(res, contentType);
   res.end(buffer);
 }
 

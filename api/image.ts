@@ -48,6 +48,8 @@ export default async function handler(req: any, res: any) {
     res.statusCode = 200;
     res.setHeader('Content-Type', contentType);
     res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     res.end(buffer);
   } catch (err) {
     console.error('image handler error:', err);
