@@ -2,7 +2,7 @@
   "version": 2,
   "framework": "vite",
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/api/image/:filename", "destination": "/api/image-file?filename=:filename" },
     { "source": "/@vite/(.*)", "destination": "/@vite/$1" },
     { "source": "/src/(.*)", "destination": "/src/$1" },
     { "source": "/(.*)", "destination": "/index.html" }

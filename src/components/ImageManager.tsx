@@ -1,16 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, Upload, Trash2, Check, Loader2, Image as ImageIcon,
   Search, Grid, List as ListIcon
 } from 'lucide-react';
 import { 
-  ref, uploadBytesResumable, getDownloadURL, deleteObject 
-} from 'firebase/storage';
-import { 
   collection, addDoc, query, getDocs, deleteDoc, 
   doc, serverTimestamp, orderBy, onSnapshot 
 } from 'firebase/firestore';
-import { storage, db, ensureAuth, auth } from '../lib/firebase';
+import { db, ensureAuth, auth } from '../lib/firebase';
+import { toProxyImageUrl } from '../lib/imageUrls';
+import { compressImageForUpload, fetchWithTimeout } from '../lib/compressImage';
 import { cn } from '../lib/utils';
 import { motion } from 'motion/react';
 
@@ -40,6 +39,23 @@ export const ImageManager: React.FC<ImageManagerProps> = ({ isOpen, onClose, onS
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [uploadStatus, setUploadStatus] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadAbortRef = useRef<AbortController | null>(null);
+
+  const resetUploadState = () => {
+    setUploading(false);
+    setProgress(0);
+    setUploadStatus(null);
+    uploadAbortRef.current = null;
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const cancelUpload = () => {
+    uploadAbortRef.current?.abort();
+    resetUploadState();
+    setError(null);
+  };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -74,110 +90,43 @@ export const ImageManager: React.FC<ImageManagerProps> = ({ isOpen, onClose, onS
 
     await ensureAuth();
 
+    const abortController = new AbortController();
+    uploadAbortRef.current = abortController;
+
     setUploading(true);
-    setProgress(20);
+    setProgress(10);
+    setUploadStatus('Forbereder…');
+    setError(null);
 
     try {
-      // Step 1: Resize/compress on client to stay under GitHub Contents API limits.
-      setError(null);
-      const { dataUrl, contentBase64 } = await (async () => {
-        const fileToDataUrl = (f: File) =>
-          new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(f);
-          });
+      const { contentBase64, contentType, compressedSize } = await compressImageForUpload(
+        file,
+        (msg) => setUploadStatus(msg)
+      );
 
-        const sourceDataUrl = await fileToDataUrl(file);
+      if (abortController.signal.aborted) return;
 
-        const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-          const el = new Image();
-          el.onload = () => resolve(el);
-          el.onerror = reject;
-          el.src = sourceDataUrl;
-        });
+      setProgress(45);
+      setUploadStatus('Laster opp til server…');
 
-        const drawToCanvas = (targetWidth: number) => {
-          const canvas = document.createElement('canvas');
-          const scale = targetWidth / img.width;
-          const width = Math.round(img.width * scale);
-          const height = Math.round(img.height * scale);
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) throw new Error('Kunne ikke lage canvas-context.');
-          // White background so PNGs with transparency don't turn black when converting to JPEG.
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(0, 0, width, height);
-          ctx.drawImage(img, 0, 0, width, height);
-          return canvas;
-        };
-
-        const canvasToDataUrl = (canvas: HTMLCanvasElement, mime: string, quality?: number) =>
-          new Promise<string>((resolve, reject) => {
-            canvas.toBlob(
-              (blob) => {
-                if (!blob) return reject(new Error('Kunne ikke komprimere bildet.'));
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result as string);
-                reader.onerror = reject;
-                reader.readAsDataURL(blob);
-              },
-              mime,
-              quality
-            );
-          });
-
-        // GitHub Contents API has a practical size ceiling around 1MB for file contents.
-        // Keep some margin for base64 overhead.
-        const MAX_BASE64_CHARS = 900_000;
-
-        const widths = [1200, 1000, 900, 800];
-        const qualities = [0.85, 0.8, 0.75, 0.7, 0.65];
-
-        for (const w of widths) {
-          const canvas = drawToCanvas(Math.min(w, img.width));
-
-          // Try PNG first only if input is PNG (keeps sharp graphics), otherwise go straight to JPEG.
-          if (file.type === 'image/png') {
-            const pngUrl = await canvasToDataUrl(canvas, 'image/png');
-            const pngB64 = pngUrl.split(',')[1] || '';
-            if (pngB64.length <= MAX_BASE64_CHARS) {
-              return { dataUrl: pngUrl, contentBase64: pngB64 };
-            }
-          }
-
-          for (const q of qualities) {
-            const jpgUrl = await canvasToDataUrl(canvas, 'image/jpeg', q);
-            const jpgB64 = jpgUrl.split(',')[1] || '';
-            if (jpgB64.length <= MAX_BASE64_CHARS) {
-              return { dataUrl: jpgUrl, contentBase64: jpgB64 };
-            }
-          }
-        }
-
-        throw new Error('Bildet er for stort etter komprimering. Prøv et mindre bilde.');
-      })();
-
-      setProgress(40);
-
-      // Step 2: Upload to GitHub (via Vercel API to avoid exposing token in the client)
       const basePath = import.meta.env.VITE_GITHUB_IMAGES_PATH || 'public/bilder';
-
       const filename = `${Date.now()}-${file.name.replace(/\s+/g, '-')}`;
-      
-      const response = await fetch('/api/github/upload', {
+
+      const response = await fetchWithTimeout('/api/github/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           filename,
           contentBase64,
-          contentType: file.type,
+          contentType,
           basePath,
         }),
+        signal: abortController.signal,
+        timeoutMs: 90_000,
       });
-      
+
+      if (abortController.signal.aborted) return;
+
       if (!response.ok) {
         let msg = response.statusText;
         try {
@@ -187,35 +136,41 @@ export const ImageManager: React.FC<ImageManagerProps> = ({ isOpen, onClose, onS
         if (response.status === 401 || msg.includes('Bad credentials')) {
           throw new Error('Feil med GitHub-nøkkel (Bad credentials). Oppdater `VITE_GITHUB_TOKEN` i Vercel og redeploy.');
         }
+        if (response.status === 413) {
+          throw new Error('Bildet er for stort for opplasting. Prøv et mindre bilde.');
+        }
         throw new Error(`GitHub upload feilet (${response.status}): ${msg}`);
       }
 
       const { url: githubUrl, githubPath } = await response.json();
-      
-      setProgress(80);
 
-      // Step 3: Save metadata to Firestore
+      setProgress(85);
+      setUploadStatus('Lagrer i biblioteket…');
+
       await addDoc(collection(db, 'images'), {
-        url: githubUrl, 
+        url: githubUrl,
+        githubPath: githubPath || undefined,
         name: file.name,
-        size: file.size,
-        type: file.type,
+        size: compressedSize,
+        type: contentType,
         uploadedAt: serverTimestamp(),
         userId: auth.currentUser?.uid || 'anonymous',
-        githubPath: githubPath || undefined // Save path for potential deletion
       });
 
       setProgress(100);
-      setTimeout(() => {
-        setUploading(false);
-        setProgress(0);
-      }, 500);
+      setUploadStatus('Ferdig!');
+      setTimeout(resetUploadState, 400);
     } catch (err) {
-      console.error("Upload error:", err);
+      if (abortController.signal.aborted) return;
+      console.error('Upload error:', err);
       const message =
-        err instanceof Error ? err.message : 'Kunne ikke behandle bildet. Prøv et mindre bilde.';
+        err instanceof Error && err.name === 'AbortError'
+          ? 'Opplastingen tok for lang tid. Prøv igjen med et mindre bilde.'
+          : err instanceof Error
+            ? err.message
+            : 'Kunne ikke behandle bildet. Prøv et mindre bilde.';
       setError(message);
-      setUploading(false);
+      resetUploadState();
     }
   };
 
@@ -224,10 +179,6 @@ export const ImageManager: React.FC<ImageManagerProps> = ({ isOpen, onClose, onS
     setError(null);
 
     try {
-      // If it's stored on GitHub, we SHOULD try to delete it, but it's complex because we need the SHA
-      // For now, we mainly focus on removing it from Firestore so it doesn't show up in the app.
-      // If we really want to delete from GitHub, we first need to GET the file to get the SHA.
-      
       const token = import.meta.env.VITE_GITHUB_TOKEN;
       const owner = import.meta.env.VITE_GITHUB_OWNER;
       const repo = import.meta.env.VITE_GITHUB_REPO;
@@ -341,13 +292,45 @@ export const ImageManager: React.FC<ImageManagerProps> = ({ isOpen, onClose, onS
               </button>
             </div>
 
-            <label className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-blue-900 text-white rounded-xl text-sm font-medium hover:bg-blue-800 transition-all cursor-pointer shadow-lg shadow-blue-900/20">
-              <Upload size={16} />
-              Last opp bilde
-              <input type="file" accept="image/*" className="hidden" onChange={handleUpload} disabled={uploading} />
-            </label>
+            {uploading ? (
+              <button
+                type="button"
+                onClick={cancelUpload}
+                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-gray-200 text-gray-800 rounded-xl text-sm font-medium hover:bg-gray-300 transition-all"
+              >
+                Avbryt opplasting
+              </button>
+            ) : (
+              <label className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-blue-900 text-white rounded-xl text-sm font-medium hover:bg-blue-800 transition-all cursor-pointer shadow-lg shadow-blue-900/20">
+                <Upload size={16} />
+                Last opp bilde
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleUpload}
+                />
+              </label>
+            )}
           </div>
         </div>
+
+        {uploading && (
+          <div className="px-6 py-2 bg-blue-50 border-b border-blue-100 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <Loader2 className="animate-spin text-blue-600 flex-shrink-0" size={16} />
+              <p className="text-xs text-blue-800 truncate">{uploadStatus || 'Laster opp…'}</p>
+            </div>
+            <button
+              type="button"
+              onClick={cancelUpload}
+              className="text-xs font-medium text-blue-700 hover:text-blue-900 flex-shrink-0"
+            >
+              Avbryt
+            </button>
+          </div>
+        )}
 
         {uploading && (
           <div className="h-1 bg-gray-100 w-full overflow-hidden">
@@ -395,7 +378,7 @@ export const ImageManager: React.FC<ImageManagerProps> = ({ isOpen, onClose, onS
                   onClick={() => onSelect(img.id, img.url, img.name)}
                 >
                   <img 
-                    src={img.url} 
+                    src={toProxyImageUrl(img.url)} 
                     alt={img.name} 
                     className="w-full h-full object-cover transition-transform group-hover:scale-105"
                     referrerPolicy="no-referrer"
@@ -453,7 +436,7 @@ export const ImageManager: React.FC<ImageManagerProps> = ({ isOpen, onClose, onS
                   onClick={() => onSelect(img.id, img.url, img.name)}
                 >
                   <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-gray-50">
-                    <img src={img.url} alt={img.name} className="w-full h-full object-cover" />
+                    <img src={toProxyImageUrl(img.url)} alt={img.name} className="w-full h-full object-cover" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">{img.name}</p>

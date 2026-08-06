@@ -6,7 +6,9 @@ import { pdf } from '@react-pdf/renderer';
 // @ts-ignore
 import html2pdf from 'html2pdf.js';
 import { NewsletterData, Section, ListItem, GridItem } from './types';
-import { DEFAULT_DATA, COLORS } from './constants';
+import { DEFAULT_DATA, COLORS, applyEmailTypography, NEWSLETTER_MOBILE_LAYOUT_CSS } from './constants';
+import { rewriteImageUrlsInElement, getPublicAppOrigin } from './lib/imageUrls';
+import { prepareImageTextTablesForEmail } from './lib/emailLayout';
 import { NewsletterPdfDocument } from './pdf/NewsletterPdf';
 import { Sidebar } from './components/Sidebar';
 import { Preview } from './components/Preview';
@@ -417,6 +419,14 @@ export const Editor: React.FC = () => {
 
       // Clean up images for Outlook
       const base64Images: string[] = [];
+      // Outlook for Windows is more reliable when the hero/header image uses a fixed width in inline styles.
+      // We detect it as the first 600px-wide image inside a "line-height:0" container cell (the hero row).
+      let heroImg: HTMLImageElement | null = null;
+      const heroCandidate = clone.querySelector('td[style*="line-height: 0"][style*="font-size: 0"] img[width="600"]');
+      if (heroCandidate && heroCandidate.tagName === 'IMG') {
+        heroImg = heroCandidate as HTMLImageElement;
+      }
+
       clone.querySelectorAll('img').forEach(img => {
         const src = img.getAttribute('src') || '';
         
@@ -432,10 +442,21 @@ export const Editor: React.FC = () => {
         img.style.border = '0';
         img.style.outline = 'none';
         img.style.textDecoration = 'none';
+        // Gmail/clients: don't allow images to force overflow
+        img.style.maxWidth = '100%';
+        img.style.height = 'auto';
         // Force width for Outlook
         const widthAttr = img.getAttribute('width');
         if (widthAttr) {
-          img.style.width = widthAttr + 'px';
+          if (heroImg && img === heroImg) {
+            // Fluid on mobile (avoids viewport zoom-out); width attr keeps Outlook happy
+            img.style.width = '100%';
+            img.style.maxWidth = widthAttr + 'px';
+          } else {
+            // Other images: fluid sizing for Gmail/mobile, constrained by max-width
+            img.style.width = '100%';
+            img.style.maxWidth = widthAttr + 'px';
+          }
         }
       });
 
@@ -495,13 +516,6 @@ export const Editor: React.FC = () => {
           // @ts-ignore
           table.style.msoTableRspace = '0pt';
           
-          // Force 600px width ONLY for the top-level main container tables
-          // Nested tables should remain 100% or their specific widths
-          if (table.style.maxWidth === '600px') {
-             table.setAttribute('width', '600');
-             table.style.width = '600px';
-          }
-
           // Ensure background colors are applied as attributes for legacy clients
           const tableBg = normalizeColor(table.style.backgroundColor);
           if (tableBg) {
@@ -509,6 +523,36 @@ export const Editor: React.FC = () => {
           }
         }
       });
+
+      // Make nested 600px tables fluid (Gmail/mobile) while keeping max 600px.
+      // Outlook gets fixed width via the MSO wrapper in the copied fragment.
+      clone.querySelectorAll('table').forEach(t => {
+        const table = t as HTMLTableElement;
+        const widthAttr = (table.getAttribute('width') || '').trim();
+        const styleWidth = (table.style.width || '').trim();
+        const styleMaxWidth = (table.style.maxWidth || '').trim();
+
+        const is600 =
+          widthAttr === '600' ||
+          styleWidth === '600px' ||
+          styleMaxWidth === '600px';
+
+        if (!is600) return;
+
+        table.setAttribute('width', '100%');
+        table.style.width = '100%';
+        table.style.maxWidth = '600px';
+        table.style.margin = table.style.margin || '0 auto';
+      });
+
+      // Bilde+tekst: side-om-side i e-post (mobil-stacking kun via @media der støttet)
+      prepareImageTextTablesForEmail(clone);
+
+      // E-post: bruk mobil-skala inline (Gmail ignorerer ofte @media i <style>)
+      applyEmailTypography(clone);
+
+      // Serve images via app domain — never expose GitHub/Firebase URLs to recipients
+      rewriteImageUrlsInElement(clone, getPublicAppOrigin());
 
       const html = clone.innerHTML;
 
@@ -522,6 +566,7 @@ export const Editor: React.FC = () => {
   <style>
     /* Prevent Windows 10 Mail from resizing images */
     img { -ms-interpolation-mode: bicubic; }
+    td { word-break: break-word; overflow-wrap: break-word; }
     /* Force mobile apps to show text at regular size */
     body { width: 100% !important; -webkit-text-size-adjust: 100% !important; -ms-text-size-adjust: 100% !important; margin: 0; padding: 0; }
     /* Ensure links aren't automatically changed to blue */
@@ -529,7 +574,13 @@ export const Editor: React.FC = () => {
     
     @media only screen and (max-width: 600px) {
       .full-width { width: 100% !important; height: auto !important; }
-      .mobile-padding { padding: 10px !important; }
+      ${NEWSLETTER_MOBILE_LAYOUT_CSS}
+      .nl-body, p[style*="font-size: 18px"], div[style*="font-size: 18px"] {
+        font-size: 18px !important;
+        line-height: 27px !important;
+      }
+      h2[style*="font-size: 24px"], h2[style*="font-size: 30px"] { line-height: 1.3 !important; font-weight: 600 !important; }
+      h3[style*="font-size: 24px"] { font-weight: 600 !important; }
     }
   </style>
 </head>
@@ -538,11 +589,11 @@ export const Editor: React.FC = () => {
   <tr>
     <td align="center" style="padding: 20px 0; background-color: ${COLORS.background};" bgcolor="${COLORS.background}">
       <!--[if mso]>
-      <table role="presentation" width="600" border="0" cellspacing="0" cellpadding="0" align="center" bgcolor="${COLORS.background}" style="width:600px; background-color: ${COLORS.background};">
+      <table role="presentation" width="600" border="0" cellspacing="0" cellpadding="0" align="center" bgcolor="${COLORS.background}" style="width:600px; background-color:${COLORS.background};">
         <tr>
-          <td align="center" style="padding: 0; background-color: ${COLORS.background};" bgcolor="${COLORS.background}">
+          <td align="left" bgcolor="${COLORS.background}" style="background-color:${COLORS.background}; font-family: Arial, Helvetica, sans-serif;">
       <![endif]-->
-      <table role="presentation" border="0" cellspacing="0" cellpadding="0" align="center" width="600" style="width:600px; max-width:600px; margin:0 auto; background-color:${COLORS.background};">
+      <table role="presentation" border="0" cellspacing="0" cellpadding="0" align="center" width="100%" style="width:100%; max-width:600px; margin:0 auto; background-color:${COLORS.background};">
         <tr>
           <td align="left" style="padding:0; background-color:${COLORS.background}; font-family: Arial, Helvetica, sans-serif;">
             <!--StartFragment-->
@@ -686,7 +737,8 @@ export const Editor: React.FC = () => {
       <main className="flex-1 overflow-y-auto p-12 pt-24 flex flex-col items-center" style={{ backgroundColor: COLORS.background }}>
         <Preview 
           data={data} 
-          previewRef={previewRef} 
+          previewRef={previewRef}
+          typographyMode="desktop"
           onlineUrl={(() => {
             if (id === 'new') return '#';
             const origin = window.location.origin;
