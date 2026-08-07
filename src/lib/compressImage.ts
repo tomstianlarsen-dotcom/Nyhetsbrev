@@ -63,12 +63,19 @@ function drawScaled(img: HTMLImageElement, maxWidth: number): HTMLCanvasElement 
  * Resize and compress to JPEG for GitHub upload.
  * Always outputs JPEG — PNG attempts were slow and often exceeded size limits for photos.
  */
+function throwIfAborted(signal?: AbortSignal) {
+  if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+}
+
 export async function compressImageForUpload(
   file: File,
-  onProgress?: (message: string) => void
+  onProgress?: (message: string) => void,
+  signal?: AbortSignal
 ): Promise<CompressedImage> {
   onProgress?.('Leser bilde…');
+  throwIfAborted(signal);
   const sourceDataUrl = await readFileAsDataUrl(file);
+  throwIfAborted(signal);
   const img = await loadImage(sourceDataUrl);
 
   onProgress?.('Komprimerer bilde…');
@@ -77,8 +84,10 @@ export async function compressImageForUpload(
   const qualities = [0.85, 0.75, 0.65, 0.55];
 
   for (const maxW of maxWidths) {
+    throwIfAborted(signal);
     const canvas = drawScaled(img, maxW);
     for (const q of qualities) {
+      throwIfAborted(signal);
       const b64 = await canvasToJpegBase64(canvas, q);
       if (b64.length <= MAX_UPLOAD_BASE64_CHARS) {
         return {

@@ -57,6 +57,17 @@ export const ImageManager: React.FC<ImageManagerProps> = ({ isOpen, onClose, onS
     setError(null);
   };
 
+  const handleClose = () => {
+    cancelUpload();
+    setConfirmDeleteId(null);
+    onClose();
+  };
+
+  useEffect(() => {
+    if (isOpen) return;
+    cancelUpload();
+  }, [isOpen]);
+
   useEffect(() => {
     if (!isOpen) return;
     
@@ -101,7 +112,8 @@ export const ImageManager: React.FC<ImageManagerProps> = ({ isOpen, onClose, onS
     try {
       const { contentBase64, contentType, compressedSize } = await compressImageForUpload(
         file,
-        (msg) => setUploadStatus(msg)
+        (msg) => setUploadStatus(msg),
+        abortController.signal
       );
 
       if (abortController.signal.aborted) return;
@@ -161,7 +173,10 @@ export const ImageManager: React.FC<ImageManagerProps> = ({ isOpen, onClose, onS
       setUploadStatus('Ferdig!');
       setTimeout(resetUploadState, 400);
     } catch (err) {
-      if (abortController.signal.aborted) return;
+      if (abortController.signal.aborted) {
+        resetUploadState();
+        return;
+      }
       console.error('Upload error:', err);
       const message =
         err instanceof Error && err.name === 'AbortError'
@@ -239,7 +254,7 @@ export const ImageManager: React.FC<ImageManagerProps> = ({ isOpen, onClose, onS
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        onClick={onClose}
+        onClick={handleClose}
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
       />
       
@@ -259,7 +274,7 @@ export const ImageManager: React.FC<ImageManagerProps> = ({ isOpen, onClose, onS
               <p className="text-xs text-gray-500">Last opp og administrer dine bilder</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400 hover:text-gray-600">
+          <button onClick={handleClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400 hover:text-gray-600">
             <X size={20} />
           </button>
         </div>
@@ -485,7 +500,7 @@ export const ImageManager: React.FC<ImageManagerProps> = ({ isOpen, onClose, onS
         <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex items-center justify-between">
           <p className="text-xs text-gray-500">{filteredImages.length} bilder i biblioteket</p>
           <button 
-            onClick={onClose}
+            onClick={handleClose}
             className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
           >
             Avbryt
