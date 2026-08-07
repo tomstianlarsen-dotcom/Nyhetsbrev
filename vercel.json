@@ -1,6 +1,7 @@
 {
   "version": 2,
   "framework": "vite",
+  "ignoreCommand": "bash scripts/vercel-ignore-build.sh",
   "rewrites": [
     { "source": "/api/image/:filename", "destination": "/api/image-file?filename=:filename" },
     { "source": "/@vite/(.*)", "destination": "/@vite/$1" },
